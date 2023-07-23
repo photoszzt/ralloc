@@ -184,7 +184,7 @@ int main (int argc, char * argv[])
   t.start ();
 
   int i;
-  int *threadArg = malloc(nthreads*sizeof(int));
+  int *threadArg = (int *)malloc(nthreads*sizeof(int));
   for (i = 0; i < nthreads; i++) {
     threadArg[i] = i;
     threads[i].create (worker, &threadArg[i]);

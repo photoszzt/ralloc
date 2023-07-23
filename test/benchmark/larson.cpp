@@ -157,6 +157,7 @@ int main (int argc, char *argv[])
   unsigned     seed=12345 ;
   int          num_chunks=10000;
   long sleep_cnt;
+  int ret;
 
   if (argc > 7) {
     sleep_cnt = atoi(argv[1]);
@@ -180,21 +181,53 @@ int main (int argc, char *argv[])
 #endif
   printf("C version (malloc and free)\n") ;
   printf("runtime (sec): ") ;
-  scanf ("%ld", &sleep_cnt);
+  ret = scanf ("%ld", &sleep_cnt);
+  if (ret != 0) {
+    perror("scanf");
+    return(1);
+  }
 
   printf("chunk size (min,max): ") ;
-  scanf("%d %d", &min_size, &max_size ) ;
+  ret = scanf("%d %d", &min_size, &max_size ) ;
+  if (ret != 0) {
+    perror("scanf");
+    return(1);
+  }
 #if defined(_MT) || defined(_REENTRANT)
   //#ifdef _MT
   printf("threads (min, max):   ") ;
-  scanf("%d %d", &min_threads, &max_threads) ;
-  printf("chunks/thread:  ") ; scanf("%d", &chperthread ) ;
-  printf("no of rounds:   ") ; scanf("%d", &num_rounds ) ;
+  ret = scanf("%d %d", &min_threads, &max_threads) ;
+  if (ret != 0) {
+    perror("scanf");
+    return(1);
+  }
+  printf("chunks/thread:  ") ; 
+  ret = scanf("%d", &chperthread ) ;
+  if (ret != 0) {
+    perror("scanf");
+    return(1);
+  }
+  printf("no of rounds:   ") ; 
+  ret = scanf("%d", &num_rounds ) ;
+  if (ret != 0) {
+    perror("scanf");
+    return(1);
+  }
   num_chunks = max_threads*chperthread ;
 #else
-  printf("no of chunks:  ") ; scanf("%d", &num_chunks ) ;
+  printf("no of chunks:  ") ; 
+  ret = scanf("%d", &num_chunks ) ;
+  if (ret != 0) {
+    perror("scanf");
+    return(1);
+  }
 #endif
-  printf("random seed:    ") ; scanf("%d", &seed) ;
+  printf("random seed:    ") ; 
+  ret = scanf("%d", &seed) ;
+  if (ret != 0) {
+    perror("scanf");
+    return(1);
+  }
 
  DoneWithInput:
 
@@ -254,9 +287,9 @@ void runloops(long sleep_cnt, int num_chunks )
       pm_free(blkp[victim]) ;
 
       if (max_size == min_size) {
-	blk_size = min_size;
+        blk_size = min_size;
       } else {
-	blk_size = min_size+lran2(&rgen)%(max_size - min_size) ;
+        blk_size = min_size+lran2(&rgen)%(max_size - min_size) ;
       }
       blkp[victim] = (char *) pm_malloc(blk_size) ;
       blksize[victim] = blk_size ;
@@ -309,88 +342,86 @@ void runthreads(long sleep_cnt, int min_threads, int max_threads, int chperthrea
   memset(&de_area[0], 0, sizeof(thread_data)) ;
 
   prevthreads = 0 ;
-  for(num_threads=min_threads; num_threads <= max_threads; num_threads++ )
-    {
+  for(num_threads=min_threads; num_threads <= max_threads; num_threads++ ) {
+    warmup(&blkp[prevthreads*chperthread], (num_threads-prevthreads)*chperthread );
 
-      warmup(&blkp[prevthreads*chperthread], (num_threads-prevthreads)*chperthread );
+    nperthread = chperthread ;
+    stopflag   = FALSE ;
 
-      nperthread = chperthread ;
-      stopflag   = FALSE ;
+    for(i=0; i< num_threads; i++){
+      de_area[i].threadno    = i+1 ;
+      de_area[i].NumBlocks   = num_rounds*nperthread;
+      de_area[i].array       = &blkp[i*nperthread] ;
+      de_area[i].blksize     = &blksize[i*nperthread] ;
+      de_area[i].asize       = nperthread ;
+      de_area[i].min_size    = min_size ;
+      de_area[i].max_size    = max_size ;
+      de_area[i].seed        = lran2(&rgen) ; ;
+      de_area[i].finished    = 0 ;
+      de_area[i].cAllocs     = 0 ;
+      de_area[i].cFrees      = 0 ;
+      de_area[i].cThreads    = 0 ;
+      de_area[i].finished    = FALSE ;
+      lran2_init(&de_area[i].rgen, de_area[i].seed) ;
 
-      for(i=0; i< num_threads; i++){
-	de_area[i].threadno    = i+1 ;
-	de_area[i].NumBlocks   = num_rounds*nperthread;
-	de_area[i].array       = &blkp[i*nperthread] ;
-	de_area[i].blksize     = &blksize[i*nperthread] ;
-	de_area[i].asize       = nperthread ;
-	de_area[i].min_size    = min_size ;
-	de_area[i].max_size    = max_size ;
-	de_area[i].seed        = lran2(&rgen) ; ;
-	de_area[i].finished    = 0 ;
-	de_area[i].cAllocs     = 0 ;
-	de_area[i].cFrees      = 0 ;
-	de_area[i].cThreads    = 0 ;
-	de_area[i].finished    = FALSE ;
-	lran2_init(&de_area[i].rgen, de_area[i].seed) ;
-
-	_beginthread(exercise_heap, 0, &de_area[i]) ;
-
-	}
-
-      QueryPerformanceCounter( &start_cnt) ;
-
-      // printf ("Sleeping for %ld seconds.\n", sleep_cnt);
-      Sleep(sleep_cnt * 1000L) ;
-
-      stopflag = TRUE ;
-
-      for(i=0; i<num_threads; i++){
-	while( !de_area[i].finished ){
-		sched_yield();
-	}
-      }
-
-
-      QueryPerformanceCounter( &end_cnt) ;
-
-      sum_frees = sum_allocs =0  ;
-      sum_threads = 0 ;
-      for(i=0;i< num_threads; i++){
-	sum_allocs    += de_area[i].cAllocs ;
-	sum_frees     += de_area[i].cFrees ;
-	sum_threads   += de_area[i].cThreads ;
-	de_area[i].cAllocs = de_area[i].cFrees = 0;
-      }
-
-
-      ticks = end_cnt - start_cnt ;
-     duration = (double)ticks/ticks_per_sec ;
-
-      for( i=0; i<num_threads; i++){
-	if( !de_area[i].finished )
-	  printf("Thread at %d not finished\n", i) ;
-      }
-
-
-      rate_n = sum_allocs/duration ;
-      if( rate_1 == 0){
-	rate_1 = rate_n ;
-      }
-
-      reqd_space = (0.5*(min_size+max_size)*num_threads*chperthread) ;
-      // used_space = CountReservedSpace() - init_space;
-      used_space = 0;
-
-      printf ("Throughput = %8.0f operations per second.\n", sum_allocs / duration);
-      // printf(" sum threads: %d\n", sum_threads);
-
-      Sleep(5000L) ; // wait 5 sec for old threads to die
-
-      prevthreads = num_threads ;
-
-      printf ("Done sleeping...\n");
+      _beginthread(exercise_heap, 0, &de_area[i]) ;
 
     }
+
+    QueryPerformanceCounter( &start_cnt) ;
+
+    // printf ("Sleeping for %ld seconds.\n", sleep_cnt);
+    Sleep(sleep_cnt * 1000L) ;
+
+    stopflag = TRUE ;
+
+    for(i=0; i<num_threads; i++){
+      while( !de_area[i].finished ){
+        sched_yield();
+      }
+    }
+
+
+    QueryPerformanceCounter( &end_cnt) ;
+
+    sum_frees = sum_allocs =0  ;
+    sum_threads = 0 ;
+    for(i=0;i< num_threads; i++){
+      sum_allocs    += de_area[i].cAllocs ;
+      sum_frees     += de_area[i].cFrees ;
+      sum_threads   += de_area[i].cThreads ;
+      de_area[i].cAllocs = de_area[i].cFrees = 0;
+    }
+
+
+    ticks = end_cnt - start_cnt ;
+    duration = (double)ticks/ticks_per_sec ;
+
+    for( i=0; i<num_threads; i++){
+      if( !de_area[i].finished )
+        printf("Thread at %d not finished\n", i) ;
+    }
+
+
+    rate_n = sum_allocs/duration ;
+    if( rate_1 == 0){
+      rate_1 = rate_n ;
+    }
+
+    reqd_space = (0.5*(min_size+max_size)*num_threads*chperthread) ;
+    // used_space = CountReservedSpace() - init_space;
+    used_space = 0;
+
+    printf ("Throughput = %8.0f operations per second.\n", sum_allocs / duration);
+    // printf(" sum threads: %d\n", sum_threads);
+
+    Sleep(5000L) ; // wait 5 sec for old threads to die
+
+    prevthreads = num_threads ;
+
+    printf ("Done sleeping...\n");
+
+  }
 }
 
 
@@ -403,11 +434,11 @@ static void * exercise_heap( void *pinput)
   int           range ;
   int           threadno ;
 #ifdef THREAD_PINNING
-    int task_id;
-    int core_id;
-    cpu_set_t cpuset;
-    int set_result;
-    int get_result;
+  int task_id;
+  int core_id;
+  cpu_set_t cpuset;
+  int set_result;
+  int get_result;
 #endif
 
   if( stopflag ) return 0;
@@ -415,25 +446,25 @@ static void * exercise_heap( void *pinput)
   pdea = (thread_data *)pinput ;
   threadno = pdea->threadno;
 #ifdef THREAD_PINNING
-    CPU_ZERO(&cpuset);
-    task_id = threadno;
-    core_id = PINNING_MAP[task_id%80];
-    CPU_SET(core_id, &cpuset);
-    set_result = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
-    if (set_result != 0){
-    	fprintf(stderr, "setaffinity failed for thread %d to cpu %d\n", task_id, core_id);
-	exit(1);
-    }
-    get_result = pthread_getaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
-    if (set_result != 0){
-    	fprintf(stderr, "getaffinity failed for thread %d to cpu %d\n", task_id, core_id);
-	exit(1);
-    }
-    if (!CPU_ISSET(core_id, &cpuset)){
-   	fprintf(stderr, "WARNING: thread aiming for cpu %d is pinned elsewhere.\n", core_id);	 
-    } else {
-    	// fprintf(stderr, "thread pinning on cpu %d succeeded.\n", core_id);
-    }
+  CPU_ZERO(&cpuset);
+  task_id = threadno;
+  core_id = PINNING_MAP[task_id%80];
+  CPU_SET(core_id, &cpuset);
+  set_result = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
+  if (set_result != 0){
+    fprintf(stderr, "setaffinity failed for thread %d to cpu %d\n", task_id, core_id);
+    exit(1);
+  }
+  get_result = pthread_getaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuset);
+  if (set_result != 0){
+    fprintf(stderr, "getaffinity failed for thread %d to cpu %d\n", task_id, core_id);
+    exit(1);
+  }
+  if (!CPU_ISSET(core_id, &cpuset)){
+    fprintf(stderr, "WARNING: thread aiming for cpu %d is pinned elsewhere.\n", core_id);	 
+  } else {
+    // fprintf(stderr, "thread pinning on cpu %d succeeded.\n", core_id);
+  }
 #endif
   pdea->finished = FALSE ;
   pdea->cThreads++ ;
@@ -457,15 +488,15 @@ static void * exercise_heap( void *pinput)
 
     pdea->cAllocs++ ;
 
-		/* Write something! */
+    /* Write something! */
 
-		volatile char * chptr = ((char *) pdea->array[victim]);
-		*chptr++ = 'a';
-		volatile char ch = *((char *) pdea->array[victim]);
-		*chptr = 'b';
+    volatile char * chptr = ((char *) pdea->array[victim]);
+    *chptr++ = 'a';
+    volatile char ch = *((char *) pdea->array[victim]);
+    *chptr = 'b';
 
 
-		if( stopflag ) break ;
+    if( stopflag ) break ;
   }
 
   //  	printf("Thread %u terminating: %d allocs, %d frees\n",
