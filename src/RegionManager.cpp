@@ -51,7 +51,7 @@
 
 //mmap file
 void RegionManager::__map_persistent_region(){
-    DBG_PRINT("Creating a new persistent region...\n");
+    DBG_PRINT("Creating a new persistent region, filename %s...\n", HEAPFILE.c_str());
     int fd;
     fd  = open(HEAPFILE.c_str(), O_RDWR | O_CREAT | O_TRUNC,
                 S_IRUSR | S_IWUSR);
@@ -63,8 +63,12 @@ void RegionManager::__map_persistent_region(){
     int result = write(fd, "", 1);
     assert(result != -1);
 
+    DBG_PRINT("file size %lx...\n", FILESIZE);
     void * addr =
         mmap(0, FILESIZE, PROT_READ | PROT_WRITE, MMAP_FLAG, fd, 0);
+    if (addr == MAP_FAILED) {
+        perror("mmap");
+    }
     assert(addr != MAP_FAILED);
 
     base_addr = (char*) addr;
@@ -82,8 +86,9 @@ void RegionManager::__map_persistent_region(){
     DBG_PRINT("Base_addr: %p\n", base_addr);
     DBG_PRINT("Current_addr: %p\n", curr_addr_ptr->load());
 }
+
 void RegionManager::__remap_persistent_region(){
-    DBG_PRINT("Remapping the persistent region...\n");
+    DBG_PRINT("Remapping the persistent region..., filename %s\n", HEAPFILE.c_str());
     int fd;
     fd = open(HEAPFILE.c_str(), O_RDWR,
                 S_IRUSR | S_IWUSR);
@@ -98,8 +103,12 @@ void RegionManager::__remap_persistent_region(){
     offt = lseek(fd, 0, SEEK_SET);
     assert (offt == 0);
 
+    DBG_PRINT("file size %lx...\n", FILESIZE);
     void * addr =
         mmap(0, FILESIZE, PROT_READ | PROT_WRITE, MMAP_FLAG, fd, 0);
+    if (addr == MAP_FAILED) {
+        perror("mmap");
+    }
     assert(addr != MAP_FAILED);
 
     base_addr = (char*) addr;
@@ -126,6 +135,9 @@ void RegionManager::__map_transient_region(){
     void * addr =
         mmap(0, FILESIZE, PROT_READ | PROT_WRITE, 
             MAP_SHARED | MAP_NORESERVE, fd, 0);
+    if (addr == MAP_FAILED) {
+        perror("mmap");
+    }
     assert(addr != MAP_FAILED);
 
     base_addr = (char*) addr;
@@ -143,6 +155,7 @@ void RegionManager::__map_transient_region(){
     DBG_PRINT("Base_addr: %p\n", base_addr);
     DBG_PRINT("Current_addr: %p\n", curr_addr_ptr->load());
 }
+
 void RegionManager::__remap_transient_region(){
     DBG_PRINT("Remapping the transient region...\n");
     int fd;
