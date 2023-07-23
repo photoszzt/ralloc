@@ -16,7 +16,7 @@ else
   ALLOC=$2
 fi
 
-BINARY=./larson_test
+BINARY=${BINARY:-./larson_test}
 if [ "$ALLOC" == "je" ]; then
   BINARY="numactl --membind=2 "${BINARY}
 fi
