@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2019 University of Rochester. All rights reserved.
  * Licenced under the MIT licence. See LICENSE file in the project root for
- * details. 
+ * details.
  */
 
 /*
@@ -53,6 +53,20 @@
 void RegionManager::__map_persistent_region(){
     DBG_PRINT("Creating a new persistent region, filename %s...\n", HEAPFILE.c_str());
     int fd;
+    void* addr;
+#ifdef CXLMEM
+    struct alloc_ret alloc_ret;
+    fd = open("/dev/cxl_ivpci0", O_RDWR);
+    FD = fd;
+
+    alloc_ret = cxl_alloc(fd, HEAPFILE.c_str(), FILESIZE);
+    DBG_PRINT("file size %lx...\n", FILESIZE);
+    assert(alloc_ret.ret != -1);
+
+    persist_region_offset = alloc_ret.offset;
+    base_addr = (char*) alloc_ret.ptr;
+    addr = alloc_ret.ptr;
+#else
     fd  = open(HEAPFILE.c_str(), O_RDWR | O_CREAT | O_TRUNC,
                 S_IRUSR | S_IWUSR);
 
@@ -64,7 +78,7 @@ void RegionManager::__map_persistent_region(){
     assert(result != -1);
 
     DBG_PRINT("file size %lx...\n", FILESIZE);
-    void * addr =
+    addr =
         mmap(0, FILESIZE, PROT_READ | PROT_WRITE, MMAP_FLAG, fd, 0);
     if (addr == MAP_FAILED) {
         perror("mmap");
@@ -72,6 +86,7 @@ void RegionManager::__map_persistent_region(){
     assert(addr != MAP_FAILED);
 
     base_addr = (char*) addr;
+#endif
     // | curr_addr  |
     // | heap_start |
     // |     size   |
@@ -90,14 +105,27 @@ void RegionManager::__map_persistent_region(){
 void RegionManager::__remap_persistent_region(){
     DBG_PRINT("Remapping the persistent region..., filename %s\n", HEAPFILE.c_str());
     int fd;
+#ifdef CXLMEM
+    struct find_ret find_ret;
+    fd = open("/dev/cxl_ivpci0", O_RDWR);
+    FD = fd;
+    find_ret = find_cxl_alloc(fd, HEAPFILE.c_str());
+    assert(find_ret.found);
+    assert(FILESIZE == find_ret.length);
+    assert(find_ret.ret == 0);
+
+    DBG_PRINT("file size %lx...\n", FILESIZE);
+    base_addr = (char *)find_ret.ptr;
+    persist_region_offset = find_ret.offset;
+#else
     fd = open(HEAPFILE.c_str(), O_RDWR,
                 S_IRUSR | S_IWUSR);
 
     FD = fd;
-    off_t offt = lseek(fd, FILESIZE-1, SEEK_SET);
+    off_t offt = (off_t)lseek(fd, (off_t)FILESIZE-1, SEEK_SET);
     assert(offt != -1);
 
-    int result = write(fd, "", 1);
+    ssize_t result = write(fd, "", 1);
     assert(result != -1);
 
     offt = lseek(fd, 0, SEEK_SET);
@@ -112,6 +140,7 @@ void RegionManager::__remap_persistent_region(){
     assert(addr != MAP_FAILED);
 
     base_addr = (char*) addr;
+#endif
     curr_addr_ptr = (atomic_pptr<char>*)base_addr;
     assert(*(uint64_t*)((size_t)base_addr + 2*sizeof(atomic_pptr<char>)) == FILESIZE);
     DBG_PRINT("Addr: %p\n", addr);
@@ -126,14 +155,14 @@ void RegionManager::__map_transient_region(){
                 S_IRUSR | S_IWUSR);
 
     FD = fd;
-    off_t offt = lseek(fd, FILESIZE-1, SEEK_SET);
+    off_t offt = lseek(fd, (off_t)FILESIZE-1, SEEK_SET);
     assert(offt != -1);
 
-    int result = write(fd, "", 1);
+    ssize_t result = write(fd, "", 1);
     assert(result != -1);
 
     void * addr =
-        mmap(0, FILESIZE, PROT_READ | PROT_WRITE, 
+        mmap(0, FILESIZE, PROT_READ | PROT_WRITE,
             MAP_SHARED | MAP_NORESERVE, fd, 0);
     if (addr == MAP_FAILED) {
         perror("mmap");
@@ -163,17 +192,17 @@ void RegionManager::__remap_transient_region(){
                 S_IRUSR | S_IWUSR);
 
     FD = fd;
-    off_t offt = lseek(fd, FILESIZE-1, SEEK_SET);
+    off_t offt = lseek(fd, (off_t)FILESIZE-1, SEEK_SET);
     assert(offt != -1);
 
-    int result = write(fd, "", 1);
+    ssize_t result = write(fd, "", 1);
     assert(result != -1);
 
     offt = lseek(fd, 0, SEEK_SET);
     assert (offt == 0);
 
     void * addr =
-        mmap(0, FILESIZE, PROT_READ | PROT_WRITE, 
+        mmap(0, FILESIZE, PROT_READ | PROT_WRITE,
             MAP_SHARED | MAP_NORESERVE, fd, 0);
     assert(addr != MAP_FAILED);
 
@@ -188,15 +217,15 @@ void RegionManager::__remap_transient_region(){
 //persist the curr and base address
 void RegionManager::__close_persistent_region(){
     FLUSHFENCE;
-    FLUSH(curr_addr_ptr); 
+    FLUSH(curr_addr_ptr);
     FLUSHFENCE;
     DBG_PRINT("At the end current addr: %p\n", curr_addr_ptr->load());
 
-    unsigned long space_used = ((unsigned long) curr_addr_ptr->load() 
+    unsigned long space_used = ((unsigned long) curr_addr_ptr->load()
          - (unsigned long) base_addr);
-    unsigned long remaining_space = 
+    unsigned long remaining_space =
          ((unsigned long) FILESIZE - space_used) / (1024 * 1024);
-    DBG_PRINT("Space Used(rounded down to MiB): %ld, Remaining(MiB): %ld\n", 
+    DBG_PRINT("Space Used(rounded down to MiB): %ld, Remaining(MiB): %ld\n",
             space_used / (1024 * 1024), remaining_space);
     munmap((void*)base_addr, FILESIZE);
     close(FD);
@@ -211,11 +240,11 @@ void RegionManager::__close_transient_region(){
 
     DBG_PRINT("At the end current addr: %p\n", curr_addr);
 
-    unsigned long space_used = ((unsigned long) curr_addr 
+    unsigned long space_used = ((unsigned long) curr_addr
          - (unsigned long) base_addr);
-    unsigned long remaining_space = 
+    unsigned long remaining_space =
          ((unsigned long) FILESIZE - space_used) / (1024 * 1024);
-    DBG_PRINT("Space Used(rounded down to MiB): %ld, Remaining(MiB): %ld\n", 
+    DBG_PRINT("Space Used(rounded down to MiB): %ld, Remaining(MiB): %ld\n",
             space_used / (1024 * 1024), remaining_space);
     munmap((void*)base_addr, FILESIZE);
     close(FD);
@@ -224,7 +253,7 @@ void RegionManager::__close_transient_region(){
 //store heap root by offset from base
 void RegionManager::__store_heap_start(void* root){
     *(((intptr_t*) base_addr) + 1) = (intptr_t) root - (intptr_t) base_addr;
-    FLUSH( (((intptr_t*) base_addr) + 1)); 
+    FLUSH( (((intptr_t*) base_addr) + 1));
     FLUSHFENCE;
 }
 
@@ -241,7 +270,7 @@ int RegionManager::__nvm_region_allocator(void** memptr, size_t alignment, size_
     if (((alignment & (~alignment + 1)) != alignment) ||	//should be multiple of 2
         (alignment < sizeof(void*))) return -1; //should be at least the size of void*
     char * old_curr_addr = curr_addr_ptr->load();
-    
+
     char * new_curr_addr = old_curr_addr;
     size_t aln_adj = (size_t) new_curr_addr & (alignment - 1);
 
@@ -265,7 +294,7 @@ int RegionManager::__nvm_region_allocator(void** memptr, size_t alignment, size_
     }
     return 0;
     // *(((intptr_t*) base_addr) + 1) = (intptr_t) curr_addr;
-    // FLUSH( (((intptr_t*) base_addr) + 1)); 
+    // FLUSH( (((intptr_t*) base_addr) + 1));
 }
 
 int RegionManager::__try_nvm_region_allocator(void** memptr, size_t alignment, size_t size){
@@ -307,10 +336,15 @@ bool RegionManager::__within_range(void* ptr){
 }
 
 void RegionManager::__destroy(){
+#ifdef CXLMEM
+    int ret = cxl_free_shmem(FD, persist_region_offset, HEAPFILE.c_str(), FILESIZE);
+    assert(ret != -1);
+#else
     if(!exists_test(HEAPFILE)){
         std::cout<<"File "<<HEAPFILE<<" doesn't exist!\n";
         return;
     }
     remove(HEAPFILE.c_str());
+#endif
     return;
 }

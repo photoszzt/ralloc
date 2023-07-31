@@ -1,21 +1,22 @@
 /*
  * Copyright (C) 2019 University of Rochester. All rights reserved.
  * Licenced under the MIT licence. See LICENSE file in the project root for
- * details. 
+ * details.
  */
 
 /*
  * Copyright (C) 2018 Ricardo Leite
  * Licenced under the MIT licence. This file shares some portion from
- * LRMalloc(https://github.com/ricleite/lrmalloc) and its copyright 
+ * LRMalloc(https://github.com/ricleite/lrmalloc) and its copyright
  * is retained. See LICENSE for details about MIT License.
  */
 
 #include <sys/mman.h>
 
 #include <string>
-#include <chrono> 
+#include <chrono>
 #include <iostream>
+#include <atomic>
 
 #include "BaseMeta.hpp"
 
@@ -60,7 +61,7 @@ AtomicCrossPtrCnt<T,idx>::AtomicCrossPtrCnt(T* real_ptr, uint64_t counter)noexce
 
 // wrapped-up atomic ops for AtomicCrossPtrCnt
 template<class T, RegionIndex idx>
-inline ptr_cnt<T> AtomicCrossPtrCnt<T,idx>::load(memory_order order)const noexcept{
+inline ptr_cnt<T> AtomicCrossPtrCnt<T,idx>::load(std::memory_order order)const noexcept{
     char* cur_off = off.load(order);
     ptr_cnt<T> ret;
     ret.cnt = reinterpret_cast<uint64_t>(cur_off) >> MAX_DESC_OFFSET_BITS;
@@ -74,7 +75,7 @@ inline ptr_cnt<T> AtomicCrossPtrCnt<T,idx>::load(memory_order order)const noexce
 }
 
 template<class T, RegionIndex idx>
-inline void AtomicCrossPtrCnt<T,idx>::store(ptr_cnt<T> desired, memory_order order)noexcept{
+inline void AtomicCrossPtrCnt<T,idx>::store(ptr_cnt<T> desired, std::memory_order order)noexcept{
     char* new_off;
     uint64_t cnt_prefix = desired.cnt << MAX_DESC_OFFSET_BITS;
     if(desired.get_ptr() == nullptr){
@@ -87,7 +88,7 @@ inline void AtomicCrossPtrCnt<T,idx>::store(ptr_cnt<T> desired, memory_order ord
 }
 
 template<class T, RegionIndex idx>
-inline bool AtomicCrossPtrCnt<T,idx>::compare_exchange_weak(ptr_cnt<T>& expected, ptr_cnt<T> desired, memory_order order)noexcept{
+inline bool AtomicCrossPtrCnt<T,idx>::compare_exchange_weak(ptr_cnt<T>& expected, ptr_cnt<T> desired, std::memory_order order)noexcept{
     char* old_off;
     char* new_off;
     uint64_t old_cnt_prefix = expected.cnt << MAX_DESC_OFFSET_BITS;
@@ -118,7 +119,7 @@ inline bool AtomicCrossPtrCnt<T,idx>::compare_exchange_weak(ptr_cnt<T>& expected
 }
 
 template<class T, RegionIndex idx>
-inline bool AtomicCrossPtrCnt<T,idx>::compare_exchange_strong(ptr_cnt<T>& expected, ptr_cnt<T> desired, memory_order order)noexcept{
+inline bool AtomicCrossPtrCnt<T,idx>::compare_exchange_strong(ptr_cnt<T>& expected, ptr_cnt<T> desired, std::memory_order order)noexcept{
     char* old_off;
     char* new_off;
     uint64_t old_cnt_prefix = expected.cnt << MAX_DESC_OFFSET_BITS;
@@ -172,7 +173,7 @@ bool BaseMeta::is_dirty(){
         pthread_mutex_init(&dirty_mtx, &dirty_attr);
         return true;
     default:
-        printf("something unexpected happens when check dirty_mtx\n"); 
+        printf("something unexpected happens when check dirty_mtx\n");
         exit(1);
     }// switch(s)
 }
@@ -182,7 +183,7 @@ void BaseMeta::set_clean(){
 }
 
 BaseMeta::BaseMeta() noexcept
-: 
+:
     avail_sb(),
     heaps()
     // thread_num(thd_num) {
@@ -255,7 +256,7 @@ inline void* BaseMeta::expand_get_large_sb(size_t sz){
         assert(res != -1 && "space runs out!");
     }
     DBG_PRINT("expand sb space for large sb allocation\n");
-    
+
     Descriptor* desc = desc_lookup(ret);
     new (desc) Descriptor();
     return ret;
@@ -269,7 +270,7 @@ inline SizeClassData* BaseMeta::get_sizeclass(ProcHeap* h){
     return get_sizeclass_by_idx(h->sc_idx);
 }
 
-inline SizeClassData* BaseMeta::get_sizeclass_by_idx(size_t idx) { 
+inline SizeClassData* BaseMeta::get_sizeclass_by_idx(size_t idx) {
     return sizeclass.get_sizeclass_by_idx(idx);
 }
 
@@ -280,7 +281,7 @@ uint32_t BaseMeta::compute_idx(char* superblock, char* block, size_t sc_idx) {
 
     assert(block >= superblock);
     assert(block < superblock + sc->sb_size);
-    // optimize integer division by allowing the compiler to create 
+    // optimize integer division by allowing the compiler to create
     //  a jump table using size class index
     // compiler can then optimize integer div due to known divisor
     uint32_t diff = uint32_t(block - superblock);
@@ -329,7 +330,7 @@ void BaseMeta::flush_cache(size_t sc_idx, TCacheBin* cache) {
     uint32_t const block_size = sc->block_size;
     // after CAS, desc might become empty and
     //  concurrently reused, so store maxcount
-    uint32_t const maxcount = sc->get_block_num();
+    uint32_t const maxcount = (uint32_t)sc->get_block_num();
     (void)maxcount; // suppress unused warning
 
     // @todo: optimize
@@ -428,7 +429,7 @@ void BaseMeta::heap_push_partial(Descriptor* desc) {
     do {
         newhead.set(desc, oldhead.get_counter() + 1);
         assert(oldhead.get_ptr() != newhead.get_ptr());
-        newhead.get_ptr()->next_partial.store(oldhead.get_ptr()); 
+        newhead.get_ptr()->next_partial.store(oldhead.get_ptr());
     } while (!heap->partial_list.compare_exchange_weak(oldhead, newhead));
 }
 
@@ -510,7 +511,7 @@ void BaseMeta::malloc_from_newsb(size_t sc_idx, TCacheBin* cache, size_t& block_
     ProcHeap* heap = &heaps[sc_idx];
     SizeClassData* sc = get_sizeclass_by_idx(sc_idx);
     uint32_t const block_size = sc->block_size;
-    uint32_t const maxcount = sc->get_block_num();
+    uint32_t const maxcount = (uint32_t)sc->get_block_num();
 
     char* superblock = reinterpret_cast<char*>(small_sb_alloc(sc->sb_size));
     assert(superblock);
@@ -635,9 +636,9 @@ inline void BaseMeta::small_sb_retire(void* sb, size_t size){
     } while (!avail_sb.compare_exchange_weak(oldhead,newhead));
 }
 
-/* 
- * IMPORTANT: 	Large_sb_alloc is designed for very rare 
- *				large sb (>=16K) allocations. 
+/*
+ * IMPORTANT: 	Large_sb_alloc is designed for very rare
+ *				large sb (>=16K) allocations.
  *
  *				Every time sb region will be expanded by $size$
  */
@@ -665,7 +666,7 @@ void* BaseMeta::do_malloc(size_t size){
         Descriptor* desc = desc_lookup(ptr);
 
         desc->heap = &heaps[0];
-        desc->block_size = sbs;
+        desc->block_size = (uint32_t)sbs;
         desc->maxcount = 1;
         desc->superblock = ptr;
 
@@ -724,7 +725,7 @@ void BaseMeta::do_free(void* ptr){
 // this can be called by TCaches
 void ralloc::public_flush_cache(){
     if(initialized) {
-        for(int i=1;i<MAX_SZ_IDX;i++){// sc 0 is reserved.
+        for(size_t i=1;i<MAX_SZ_IDX;i++){// sc 0 is reserved.
             base_md->flush_cache(i, &t_caches.t_cache[i]);
         }
     }
@@ -732,14 +733,14 @@ void ralloc::public_flush_cache(){
 
 /*
  * function GarbageCollection::operator()
- * 
+ *
  * Description:
  *  Sequential stop-the-world garbage collection routine for Ralloc when dirty
  *  segment exists.
  */
 void GarbageCollection::operator() () {
     printf("Start garbage collection...\n");
-    auto start = high_resolution_clock::now(); 
+    auto start = high_resolution_clock::now();
     // Step 0: initialize all transient data
     printf("Initializing all transient data...");
     base_md->avail_sb.off.store(nullptr); // initialize avail_sb
@@ -783,9 +784,9 @@ void GarbageCollection::operator() () {
         char* last_possible_free_block = curr_sb;
 
         // go through all curr_marked_blk that's in this sb
-        while (curr_marked_blk!=marked_blk.end() && 
-                ((uint64_t)curr_sb>>SB_SHIFT) == ((uint64_t)(*curr_marked_blk)>>SB_SHIFT)) 
-        { 
+        while (curr_marked_blk!=marked_blk.end() &&
+                ((uint64_t)curr_sb>>SB_SHIFT) == ((uint64_t)(*curr_marked_blk)>>SB_SHIFT))
+        {
             // curr_marked_blk doesn't reach the end of marked_blk and curr_marked_blk is in curr_sb
 
             if(curr_desc->heap != nullptr &&
@@ -797,11 +798,11 @@ void GarbageCollection::operator() () {
                     // to be pointed at in the middle
                     assert(curr_desc->maxcount == 1);
                     anchor.state = SB_FULL; // set it as full
-                } 
+                }
                 else {
                     // small sb that's in use
                     anchor.state = SB_PARTIAL;
-                    for(char* free_block = last_possible_free_block; 
+                    for(char* free_block = last_possible_free_block;
                         free_block < (*curr_marked_blk); free_block+=curr_desc->block_size){
                         // put last_possible_free_block...(curr_marked_blk-1) to free blk list
                         (*reinterpret_cast<pptr<char>*>(free_block)) = free_blocks_head;
@@ -838,14 +839,14 @@ void GarbageCollection::operator() () {
                 curr_desc = base_md->desc_lookup(curr_sb);
             } else {
                 // small sb that's in use
-                for(char* free_block = last_possible_free_block; 
+                for(char* free_block = last_possible_free_block;
                     free_block < curr_sb+curr_desc->maxcount*curr_desc->block_size; free_block+=curr_desc->block_size){
                     // put last_possible_free_block...(curr_sb+SBSIZE-1) to free blk list
                     (*reinterpret_cast<pptr<char>*>(free_block)) = free_blocks_head;
                     free_blocks_head = free_block;
                     anchor.count++;
                 }
-                if(anchor.count == 0) { 
+                if(anchor.count == 0) {
                     // this sb is fully used
                     anchor.avail = curr_desc->maxcount;
                     anchor.state = SB_FULL;
@@ -876,7 +877,7 @@ void GarbageCollection::operator() () {
     ptr_cnt<Descriptor> tmp_avail_sb(avail_sb, 0);
     base_md->avail_sb.store(tmp_avail_sb);
     printf("Reconstructed! \n");
-    auto stop = high_resolution_clock::now(); 
+    auto stop = high_resolution_clock::now();
     assert(curr_marked_blk == marked_blk.end());
     auto duration = duration_cast<milliseconds>(stop - start);
     cout << "Time elapsed = " << duration.count() <<" ms on GC."<<endl;

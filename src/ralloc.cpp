@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2019 University of Rochester. All rights reserved.
  * Licenced under the MIT licence. See LICENSE file in the project root for
- * details. 
+ * details.
  */
 
 #include "ralloc.hpp"
@@ -43,7 +43,7 @@ int _RP_init(const char* _id, uint64_t size){
     assert(sizeof(Descriptor) == DESCSIZE); // check desc size
     assert(size < MAX_SB_REGION_SIZE && size >= MIN_SB_REGION_SIZE); // ensure user input is >=MAX_SB_REGION_SIZE
     uint64_t num_sb = size/SBSIZE;
-    bool restart = Regions::exists_test(filepath+"_basemd");
+    bool restart = Regions::exists_test(filepath+"_basemd", true);
     _rgs = new Regions();
     for(int i=0; i<LAST_IDX;i++){
     switch(i){
@@ -55,6 +55,9 @@ int _RP_init(const char* _id, uint64_t size){
         break;
     case META_IDX:
         base_md = _rgs->create_for<BaseMeta>(filepath+"_basemd", sizeof(BaseMeta), true);
+        break;
+    default:
+        fprintf(stderr, "unrecognized IDX: %d\n", i);
         break;
     } // switch
     }
@@ -69,7 +72,7 @@ struct RallocHolder{
     }
     ~RallocHolder(){
         // #ifndef MEM_CONSUME_TEST
-        // flush_region would affect the memory consumption result (rss) and 
+        // flush_region would affect the memory consumption result (rss) and
         // thus is disabled for benchmark testing. To enable, simply comment out
         // -DMEM_CONSUME_TEST flag in Makefile.
         _rgs->flush_region(DESC_IDX);
@@ -81,7 +84,7 @@ struct RallocHolder{
     }
 };
 
-/* 
+/*
  * mmap the existing heap file corresponding to id. aka restart,
  * 		and if multiple heaps exist, print out and let user select;
  * if such a heap doesn't exist, create one. aka start.

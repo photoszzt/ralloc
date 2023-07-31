@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2019 University of Rochester. All rights reserved.
  * Licenced under the MIT licence. See LICENSE file in the project root for
- * details. 
+ * details.
  */
 
 #ifndef _PPTR_HPP_
@@ -22,50 +22,50 @@ inline bool is_valid_pptr(uint64_t off) {
 }
 /*
  * class pptr<T>
- * 
+ *
  * Description:
  *  Position independent pointer class for type T, which can be applied via
  *  replacing all T* by pptr<T>.
  *  However, for atomic plain pointers, please replace atomic<T*> by
  *  atomic_pptr<T> as a whole.
- * 
+ *
  *  The current implementation is off-holder from paper:
  *      Efficient Support of Position Independence on Non-Volatile Memory
  *      Guoyang Chen et al., MICRO'2017
  *
  *  It stores the offset from the instance itself to the object it points to.
  *  The offset can be negative.
- * 
+ *
  *  Two kinds of constructors and casting to transient pointer are provided,
  *  as well as dereference, arrow access, assignment, and comparison.
- * 
+ *
  *  TODO: implement pptr as RIV which allows cross-region references, while still
  *  keeping the same interface.
  */
 template<class T>
 class pptr;
-/* 
+/*
  * class atomic_pptr<T>
- * 
+ *
  * Description:
  * This is the atomic version of pptr<T>, whose constructor takes a pointer or
  * pptr<T>.
  *
- * The field *off* stores the offset from the instance of atomic_pptr to 
+ * The field *off* stores the offset from the instance of atomic_pptr to
  * the object it points to.
  *
  * It defines load, store, compare_exchange_weak, and compare_exchange_strong
- * with the same specification of atomic, and returns and/or takes desired and 
+ * with the same specification of atomic, and returns and/or takes desired and
  * expected value in type of T*.
  */
 template<class T>
 class atomic_pptr;
 
-/* 
+/*
  * functions to_pptr_off<T> and from_pptr_off<T>
- * 
+ *
  * Description:
- * These are functions for conversions between pptr<T>::off and T* 
+ * These are functions for conversions between pptr<T>::off and T*
  */
 template<class T>
 inline uint64_t to_pptr_off(const T* v, const pptr<T>* p) {
@@ -88,13 +88,13 @@ inline uint64_t to_pptr_off(const T* v, const pptr<T>* p) {
 
 template<class T>
 inline T* from_pptr_off(uint64_t off, const pptr<T>* p) {
-    if(!is_valid_pptr(off) || is_null_pptr(off)) { 
+    if(!is_valid_pptr(off) || is_null_pptr(off)) {
         return nullptr;
     } else {
         if(off & 1) { // sign bit is true (negative)
-            return (T*)(((int64_t)p) - (off>>PPTR_PATTERN_SHIFT));
+            return (T*)(((uintptr_t)p) - (off>>PPTR_PATTERN_SHIFT));
         } else {
-            return (T*)(((int64_t)p) + (off>>PPTR_PATTERN_SHIFT));
+            return (T*)(((uintptr_t)p) + (off>>PPTR_PATTERN_SHIFT));
         }
     }
 }
@@ -173,7 +173,7 @@ inline bool operator!=(const pptr<T>& lhs, const pptr<T>& rhs){
     return !((T*)lhs == (T*)rhs);
 }
 
-template <class T> 
+template <class T>
 class atomic_pptr{
 public:
     std::atomic<uint64_t> off;
@@ -202,7 +202,7 @@ public:
         uint64_t cur_off = off.load(order);
         return from_pptr_off(cur_off, this);
     }
-    void store(T* desired, 
+    void store(T* desired,
         std::memory_order order = std::memory_order_seq_cst ) noexcept{
         uint64_t new_off = to_pptr_off(desired, this);
         off.store(new_off, order);

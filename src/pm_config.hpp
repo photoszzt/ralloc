@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2019 University of Rochester. All rights reserved.
  * Licenced under the MIT licence. See LICENSE file in the project root for
- * details. 
+ * details.
  */
 
 #ifndef _RP_CONFIG_HPP_
@@ -57,6 +57,10 @@ enum RegionIndex : int {
 #ifdef SHM_SIMULATING
   #define HEAPFILE_PREFIX "/dev/shm/"
   #define MMAP_FLAG MAP_SHARED
+#elif defined(CXLMEM)
+  #define HEAPFILE_PREFIX ""
+  #define MMAP_FLAG MAP_SHARED
+  #define CXL_DEV_PATH "/dev/cxl_ivpci0"
 #else
   #define HEAPFILE_PREFIX "/mnt/pmem/"
   #define MMAP_FLAG 0x80003/*MAP_SHARED_VALIDATE | MAP_SYNC*/
@@ -73,7 +77,9 @@ const int MAX_ROOTS = 1024;
 const int TYPE_SIZE = 4;
 const int PTR_SIZE = sizeof(void*);
 const int HEADER_SIZE = (TYPE_SIZE + PTR_SIZE);
+#ifndef CACHELINE_SIZE
 const int CACHELINE_SIZE = 64; // in byte
+#endif
 const uint64_t CACHELINE_MASK = (uint64_t)(CACHELINE_SIZE) - 1;
 const int PAGESIZE = 4096;//4K
 const uint64_t PAGE_MASK = (uint64_t)PAGESIZE - 1;
@@ -102,7 +108,7 @@ const int64_t MAX_SB_REGION_SIZE = SBSIZE*MAX_SB_AMOUNT; // max possible sb regi
 const uint64_t MAX_DESC_REGION_SIZE = DESCSIZE*MAX_DESC_AMOUNT;
 
 /*
- * Dig 16 least significant bits inside pptr and atomic_pptr to create unique 
+ * Dig 16 least significant bits inside pptr and atomic_pptr to create unique
  * bits pattern. The least bit is sign bit.
  * Note: here we assume addresses on x86-64 don't use most significant 16 bits
  * and thus we are safe to shift an offset left by 16 bits.

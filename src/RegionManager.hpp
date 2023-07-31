@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2019 University of Rochester. All rights reserved.
  * Licenced under the MIT licence. See LICENSE file in the project root for
- * details. 
+ * details.
  */
 
 /*
@@ -19,7 +19,7 @@
  * <http://www.gnu.org/licenses/>.
  */
 
-/* 
+/*
  * This is the C++ version of region_manager code from Makalu
  * https://github.com/HewlettPackard/Atlas/tree/makalu/makalu_alloc
  *
@@ -27,7 +27,7 @@
  * 1. Code is converted in OO style (in class RegionManager).
  * 2. Regions to manage several regions used in Ralloc
  * 3. __nvm_region_allocator() is thread-safe and nonblocking.
- * 
+ *
  * Wentao Cai (wcai6@cs.rochester.edu)
  */
 
@@ -38,6 +38,13 @@
 #include <fstream>
 #include <atomic>
 #include <vector>
+
+#ifdef CXLMEM
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include "cxl_alloc.h"
+#endif
 
 #include "pm_config.hpp"
 #include "pfence_util.h"
@@ -62,6 +69,9 @@ public:
     char *base_addr = nullptr;
     atomic_pptr<char>* curr_addr_ptr;//this always points to the place of base_addr
     bool persist;
+#ifdef CXLMEM
+    uint64_t persist_region_offset;
+#endif
 
     RegionManager(const std::string& file_path, uint64_t size, bool p = true, bool imm_expand = true):
         FILESIZE(((size/PAGESIZE)+2)*PAGESIZE), // size should align to page
@@ -70,25 +80,25 @@ public:
         persist(p){
         assert(size%CACHELINE_SIZE == 0); // size should be multiple of cache line size
         if(persist){
-            if(exists_test(HEAPFILE)){
+            if(exists_test(HEAPFILE, p)){
                 __remap_persistent_region();
             } else {
                 __map_persistent_region();
                 if(imm_expand){//expand immediately
                     void* t;
-                    bool res = __nvm_region_allocator(&t,CACHELINE_SIZE,size); 
+                    bool res = __nvm_region_allocator(&t,CACHELINE_SIZE,size);
                     if(!res) assert(0&&"region allocation fails!");
                     __store_heap_start(t);
                 }
             }
         } else {
-            if(exists_test(HEAPFILE)){
+            if(exists_test(HEAPFILE, p)){
                 __remap_transient_region();
             } else {
                 __map_transient_region();
                 if(imm_expand){//expand immediately
                     void* t;
-                    bool res = __nvm_region_allocator(&t,CACHELINE_SIZE,size); 
+                    bool res = __nvm_region_allocator(&t,CACHELINE_SIZE,size);
                     if(!res) assert(0&&"region allocation fails!");
                     __store_heap_start(t);
                 }
@@ -107,9 +117,26 @@ public:
     //mmap anynomous, not used by default
     // void __map_transient_region();
 
-    inline static bool exists_test (const std::string& name){
+    inline static bool exists_test (const std::string& name, bool persist){
+#ifdef CXLMEM
+        if (persist) {
+            struct vcxl_find_alloc find_alloc;
+            int ret, fd;
+            fd = open("/dev/cxl_ivpci0", O_RDWR);
+            find_alloc = find_cxl_alloc_nomap(fd, name.c_str(), &ret);
+            if (ret) {
+                return false;
+            }
+            close(fd);
+            return (find_alloc.ret == 1);
+        } else {
+            std::ifstream f(name.c_str());
+            return f.good();
+        }
+#else
         std::ifstream f(name.c_str());
         return f.good();
+#endif
     }
 
     //mmap file
@@ -153,7 +180,7 @@ public:
 
 /*
  * class Regions
- * 
+ *
  * Description:
  *  This is the class to manage all three regions in a Ralloc instance.
  *  The indexing follows enum RegionIndex defined in pm_config.hpp
@@ -180,9 +207,26 @@ public:
     }
 
     /* check if the file $name$ exists */
-    inline static bool exists_test (const std::string& name){
+    inline static bool exists_test (const std::string& name, const bool p) {
+#ifdef CXLMEM
+        if (p) {
+            struct vcxl_find_alloc find_alloc;
+            int ret;
+            int fd = open("/dev/cxl_ivpci0", O_RDWR);
+            find_alloc = find_cxl_alloc_nomap(fd, name.c_str(), &ret);
+            if (ret) {
+                return false;
+            }
+            close(fd);
+            return (find_alloc.ret == 1);
+        } else {
+            std::ifstream f(name.c_str());
+            return f.good();
+        }
+#else
         std::ifstream f(name.c_str());
         return f.good();
+#endif
     }
 
     /* equivalently destruct the instance of Regions */
@@ -197,7 +241,7 @@ public:
 
     /* to create desc or sb region */
     void create(const std::string& file_path, uint64_t size, bool p = true, bool imm_expand = true){
-        bool restart = exists_test(file_path);
+        bool restart = exists_test(file_path, p);
         RegionManager* new_mgr = new RegionManager(file_path,size,p,imm_expand);
         regions[cur_idx] = new_mgr;
         if(imm_expand || restart)
@@ -211,7 +255,7 @@ public:
     /* to create metadata region, calling constructor of type T (BaseMeta) */
     template<class T>
     T* create_for(const std::string& file_path, uint64_t size, bool p = true){
-        bool restart = exists_test(file_path);
+        bool restart = exists_test(file_path, p);
         RegionManager* new_mgr = new RegionManager(file_path,size,p,true);
         regions[cur_idx] = new_mgr;
         T* t = (T*) new_mgr->__fetch_heap_start();
@@ -230,7 +274,7 @@ public:
 
     /*
      * function translate()
-     * 
+     *
      * Description:
      *  convert relative address to absolute address.
      *  Caller should ensure regions_address is created.
@@ -241,7 +285,7 @@ public:
 
     /*
      * function untranslate()
-     * 
+     *
      * Description:
      *  convert absolute address to relative address, namely the offset from the
      *  start address of the region $index$.

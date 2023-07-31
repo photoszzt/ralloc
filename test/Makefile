@@ -1,7 +1,7 @@
 ##
 # Copyright (C) 2019 University of Rochester. All rights reserved.
 # Licenced under the MIT licence. See LICENSE file in the project root for
-# details. 
+# details.
 ##
 
 SRC = ../src
@@ -13,10 +13,10 @@ WARNING_FLAGS:=-ftrapv -Wreturn-type -W -Wall \
 
 override FLAGS += -O3 -g -fpermissive $(WARNING_FLAGS) -fno-omit-frame-pointer -fPIC #-DSHM_SIMULATING #-DDESTROY -DMEM_CONSUME_TEST
 RALLOC_FLAGS = $(FLAGS) -DRALLOC -L.
-MAKALU_FLAGS = $(FLAGS) -I../ext/makalu_alloc/include -DMAKALU -L../ext/makalu_alloc/lib -lmakalu 
-PMDK_FLAGS = $(FLAGS) -DPMDK -lpmemobj 
+MAKALU_FLAGS = $(FLAGS) -I../ext/makalu_alloc/include -DMAKALU -L../ext/makalu_alloc/lib -lmakalu
+PMDK_FLAGS = $(FLAGS) -DPMDK -lpmemobj
 
-R_CXXFLAGS = $(RALLOC_FLAGS) -L../../jemalloc/lib -ljemalloc -L. -lralloc
+R_CXXFLAGS = $(RALLOC_FLAGS) -L. -lralloc
 MAK_CXXFLAGS = $(MAKALU_FLAGS) -L../../jemalloc/lib -ljemalloc
 JE_CXXFLAGS = $(FLAGS) -L../../jemalloc/lib -ljemalloc
 LR_CXXFLAGS = $(FLAGS) -L../ext/lrmalloc -l:lrmalloc.a -ldl# for built-in malloc
@@ -26,6 +26,14 @@ PMDK_CXXFLAGS = $(PMDK_FLAGS) -L../../jemalloc/lib -ljemalloc
 CXXFLAGS = $(R_CXXFLAGS)
 ifeq ($(ALLOC),r)
 	CXXFLAGS = $(R_CXXFLAGS)
+endif
+
+ifeq ($(ALLOC),rcxlmem_gpf)
+	CXXFLAGS = $(R_CXXFLAGS) -DCXLMEM -DGPF -I../../driver_api/ -I../../driver_futex/src/uapi -L../../build_gcc_release/
+endif
+
+ifeq ($(ALLOC),rcxlmem)
+	CXXFLAGS = $(R_CXXFLAGS) -DCXLMEM
 endif
 
 ifeq ($(ALLOC),mak)
@@ -45,31 +53,31 @@ ifeq ($(ALLOC),pmdk)
 	CXXFLAGS = $(PMDK_CXXFLAGS)
 endif
 
-LIBS = -pthread -lstdc++ -latomic 
+LIBS = -pthread -lstdc++ -latomic
 
 all: benchmark_pm
 
 # trivial_test: trivial_test.cpp
 # 	$(CXX) -I $(SRC) -o $@ $^ $(CXXFLAGS) $(LIBS)
-# 
+#
 # msqueue_test: msqueue_test.cpp
 # 	$(CXX) -I $(SRC) -o $@ $^ $(CXXFLAGS) $(LIBS)
-# 
+#
 # region_manager_test: ../obj/RegionManager.o region_manager_test.cpp
 # 	$(CXX) -I $(SRC) -o $@ $^ $(CXXFLAGS) $(LIBS)
-# 
+#
 # base_meta_test: base_meta_test.cpp libralloc.a
 # 	$(CXX) -I $(SRC) -o $@ $^ $(CXXFLAGS) $(LIBS) -L. -lralloc
-# 
+#
 # ralloc_test: ralloc_test.cpp libralloc.a
 # 	$(CXX) -I $(SRC) -o $@ $< $(CXXFLAGS) $(LIBS) -L. -lralloc
-# 
+#
 # pptr_test: pptr_test.cpp libralloc.a
 # 	$(CXX) -I $(SRC) -o $@ $< $(CXXFLAGS) $(LIBS) -L. -lralloc
-# 
+#
 # arraystack_test: arraystack_test.cpp libralloc.a
 # 	$(CXX) -I $(SRC) -o $@ $< $(CXXFLAGS) $(LIBS) -L. -lralloc
-# 
+#
 # arrayqueue_test: arrayqueue_test.cpp libralloc.a
 # 	$(CXX) -I $(SRC) -o $@ $< $(CXXFLAGS) $(LIBS) -L. -lralloc
 
@@ -82,13 +90,13 @@ $(OBJ)/%.o: $(SRC)/%.cpp
 benchmark_pm: threadtest_test sh6bench_test larson_test prod-con_test #cache-scratch_test cache-thrash_test
 
 threadtest_test: ./benchmark/threadtest.cpp libralloc.a
-	$(CXX) -I $(SRC) -I ./benchmark -o $@ $^ $(CXXFLAGS) $(LIBS) 
+	$(CXX) -I $(SRC) -I ./benchmark -o $@ $^ $(CXXFLAGS) $(LIBS)
 
 sh6bench_test: ./benchmark/sh6bench.cpp libralloc.a
-	$(CXX) -I $(SRC) -I ./benchmark -o $@ $^ $(CXXFLAGS) $(LIBS) 
+	$(CXX) -I $(SRC) -I ./benchmark -o $@ $^ $(CXXFLAGS) $(LIBS)
 
 larson_test: ./benchmark/larson.cpp libralloc.a
-	$(CXX) -I $(SRC) -I ./benchmark -o $@ $^ $(CXXFLAGS) $(LIBS) 
+	$(CXX) -I $(SRC) -I ./benchmark -o $@ $^ $(CXXFLAGS) $(LIBS)
 
 # # Active false sharing
 # cache-thrash_test: ./benchmark/cache-thrash.cpp libralloc.a
@@ -99,7 +107,7 @@ larson_test: ./benchmark/larson.cpp libralloc.a
 # 	$(CXX) -I $(SRC) -I ./benchmark -o $@ $^ $(CXXFLAGS) $(LIBS) -L. -lralloc
 
 prod-con_test: ./benchmark/prod-con.cpp libralloc.a
-	$(CXX) -I $(SRC) -I ./benchmark -o $@ $^ $(CXXFLAGS) $(LIBS) 
+	$(CXX) -I $(SRC) -I ./benchmark -o $@ $^ $(CXXFLAGS) $(LIBS)
 
 libralloc.a: $(OBJECTS)
 	ar -rcs $@ $^

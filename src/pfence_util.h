@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2019 University of Rochester. All rights reserved.
  * Licenced under the MIT licence. See LICENSE file in the project root for
- * details. 
+ * details.
  */
 
 #ifndef PFENCE_UTIL_H
@@ -19,7 +19,7 @@
  * 3. PWB_IS_PCM
  *    This only emulates the latency of persistent memory and has no effect on
  *    writeback behavior.
- * 
+ *
  * To be compatible on machines with no clwb (which usually aren't equipped by
  * real persistent memory), we use macro SHM_SIMULATING to switch between
  * clflush and clwb.
@@ -28,20 +28,21 @@
 // Uncomment to enable durable linearizability
 #define DUR_LIN
 
-// #ifdef SHM_SIMULATING
-//   #define PWB_IS_CLFLUSH
-// #else
-//   #define PWB_IS_CLWB
-// #endif
-#define PWB_IS_CLWB
+#ifdef SHM_SIMULATING
+  #define PWB_IS_CLFLUSH
+#elif defined(CXLMEM)
+  #define PWB_IS_CLWB
+#else
+  #define PWB_IS_CLWB
+#endif
 
 #ifdef DUR_LIN
   #ifdef PWB_IS_NOOP
     #define FLUSH(addr)
-    #define FLUSHFENCE 
+    #define FLUSHFENCE
   #elif defined(PWB_IS_CLFLUSH)
     #define FLUSH(addr) asm volatile ("clflush (%0)" :: "r"(addr))
-    #define FLUSHFENCE 
+    #define FLUSHFENCE
   #elif defined(PWB_IS_CLWB)
     #if defined(EADR) || defined(GFP)
     #define FLUSH(addr)
@@ -57,8 +58,8 @@
     #error "Please define what PWB is."
   #endif /* PWB_IS_? */
 #else /* !DUR_LIN */
-    #define FLUSH(addr) 
-    #define FLUSHFENCE 
+    #define FLUSH(addr)
+    #define FLUSHFENCE
 #endif
 
 /*
@@ -81,7 +82,7 @@ static inline unsigned long long asm_rdtsc(void)
 static inline void emulate_latency_ns(int ns) {
     uint64_t stop;
     uint64_t start = asm_rdtsc();
-    uint64_t cycles = NS2CYCLE(ns);
+    uint64_t cycles = (uint64_t)NS2CYCLE(ns);
     do {
         /* RDTSC doesn't necessarily wait for previous instructions to complete
          * so a serializing instruction is usually used to ensure previous
