@@ -213,7 +213,7 @@ BaseMeta::BaseMeta() noexcept
     void* tmp_sec_start = nullptr;
     int res = 0;
     while (res == 0){
-        res = _rgs->expand(SB_IDX,&tmp_sec_start,SBSIZE, SB_REGION_EXPAND_SIZE);
+        res = _rgs->expand(SB_IDX, &tmp_sec_start, SBSIZE, SB_REGION_EXPAND_SIZE);
         assert(res != -1 && "warmup sb allocation fails!");
     }
     DBG_PRINT("expand sb space for small sb allocation\n");

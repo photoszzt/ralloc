@@ -51,7 +51,7 @@
 
 //mmap file
 void RegionManager::__map_persistent_region(){
-    DBG_PRINT("Creating a new persistent region, filename %s...\n", HEAPFILE.c_str());
+    DBG_PRINT("Creating a new persistent region, filename %s\n", HEAPFILE.c_str());
     int fd;
     void* addr;
 #ifdef CXLMEM
@@ -60,7 +60,7 @@ void RegionManager::__map_persistent_region(){
     FD = fd;
 
     alloc_ret = cxl_alloc(fd, HEAPFILE.c_str(), FILESIZE);
-    DBG_PRINT("file size %lx...\n", FILESIZE);
+    DBG_PRINT("file size 0x%lx\n", FILESIZE);
     assert(alloc_ret.ret != -1);
 
     persist_region_offset = alloc_ret.offset;
@@ -77,7 +77,7 @@ void RegionManager::__map_persistent_region(){
     int result = write(fd, "", 1);
     assert(result != -1);
 
-    DBG_PRINT("file size %lx...\n", FILESIZE);
+    DBG_PRINT("file size %0xlx\n", FILESIZE);
     addr =
         mmap(0, FILESIZE, PROT_READ | PROT_WRITE, MMAP_FLAG, fd, 0);
     if (addr == MAP_FAILED) {
@@ -103,8 +103,9 @@ void RegionManager::__map_persistent_region(){
 }
 
 void RegionManager::__remap_persistent_region(){
-    DBG_PRINT("Remapping the persistent region..., filename %s\n", HEAPFILE.c_str());
+    DBG_PRINT("Remapping the persistent region, filename %s\n", HEAPFILE.c_str());
     int fd;
+    void* addr;
 #ifdef CXLMEM
     struct find_ret find_ret;
     fd = open("/dev/cxl_ivpci0", O_RDWR);
@@ -114,7 +115,8 @@ void RegionManager::__remap_persistent_region(){
     assert(FILESIZE == find_ret.length);
     assert(find_ret.ret == 0);
 
-    DBG_PRINT("file size %lx...\n", FILESIZE);
+    DBG_PRINT("file size 0x%lx\n", FILESIZE);
+    addr = find_ret.ptr;
     base_addr = (char *)find_ret.ptr;
     persist_region_offset = find_ret.offset;
 #else
@@ -131,8 +133,8 @@ void RegionManager::__remap_persistent_region(){
     offt = lseek(fd, 0, SEEK_SET);
     assert (offt == 0);
 
-    DBG_PRINT("file size %lx...\n", FILESIZE);
-    void * addr =
+    DBG_PRINT("file size 0x%lx\n", FILESIZE);
+    addr =
         mmap(0, FILESIZE, PROT_READ | PROT_WRITE, MMAP_FLAG, fd, 0);
     if (addr == MAP_FAILED) {
         perror("mmap");
