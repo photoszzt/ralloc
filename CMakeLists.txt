@@ -68,3 +68,8 @@ add_executable(prod-con_cxlmem
   ${CMAKE_CURRENT_SOURCE_DIR}/test/benchmark/prod-con.cpp
 )
 target_link_libraries(prod-con_cxlmem ralloc_cxl)
+
+add_executable(simple_alloc_cxlmem
+  ${CMAKE_CURRENT_SOURCE_DIR}/test/benchmark/simple_alloc.cc
+)
+target_link_libraries(simple_alloc_cxlmem ralloc_cxl)
