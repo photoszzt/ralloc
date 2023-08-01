@@ -230,7 +230,9 @@ void RegionManager::__close_persistent_region(){
     DBG_PRINT("Space Used(rounded down to MiB): %ld, Remaining(MiB): %ld\n",
             space_used / (1024 * 1024), remaining_space);
     munmap((void*)base_addr, FILESIZE);
+#if !defined(CXLMEM) || !defined(DESTROY)
     close(FD);
+#endif
 }
 
 //flush transient region back
@@ -337,12 +339,22 @@ bool RegionManager::__within_range(void* ptr){
     return ((intptr_t)base_addr<(intptr_t)ptr) && ((intptr_t)ptr<curr_addr);
 }
 
+// __destroy only called in DESTROY defined
 void RegionManager::__destroy(){
 #ifdef CXLMEM
-    int ret = cxl_free_shmem(FD, persist_region_offset, HEAPFILE.c_str(), FILESIZE);
-    assert(ret != -1);
+    if (persist) {
+        int ret = cxl_free_shmem(FD, persist_region_offset, HEAPFILE.c_str(), FILESIZE);
+        assert(ret != -1);
+        close(FD);
+    } else {
+        if(!exists_test(HEAPFILE, persist)){
+            std::cout<<"File "<<HEAPFILE<<" doesn't exist!\n";
+            return;
+        }
+        remove(HEAPFILE.c_str());
+    }
 #else
-    if(!exists_test(HEAPFILE)){
+    if(!exists_test(HEAPFILE, persist)){
         std::cout<<"File "<<HEAPFILE<<" doesn't exist!\n";
         return;
     }
