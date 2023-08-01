@@ -45,8 +45,8 @@ set(ralloc_inc
 target_include_directories(ralloc_cxl PUBLIC
   "$<BUILD_INTERFACE:${ralloc_inc}>"
 )
-target_compile_options(ralloc_cxl PUBLIC "$<$<CONFIG:Debug>:${RALLOC_COMPILE_OPTIONS};-DCXLMEM;-DDEBUG>")
-target_compile_options(ralloc_cxl PUBLIC "$<$<CONFIG:Release>:${RALLOC_COMPILE_OPTIONS};-DCXLMEM>")
+target_compile_options(ralloc_cxl PUBLIC "$<$<CONFIG:Debug>:${RALLOC_COMPILE_OPTIONS};-DCXLMEM;-DDESTROY;-DDEBUG>")
+target_compile_options(ralloc_cxl PUBLIC "$<$<CONFIG:Release>:${RALLOC_COMPILE_OPTIONS};-DCXLMEM;-DDESTROY>")
 target_link_libraries(ralloc_cxl cxl_driver_api)
 
 add_executable(threadtest_cxlmem
