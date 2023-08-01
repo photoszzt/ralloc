@@ -48,3 +48,23 @@ target_include_directories(ralloc_cxl PUBLIC
 target_compile_options(ralloc_cxl PUBLIC "$<$<CONFIG:Debug>:${RALLOC_COMPILE_OPTIONS};-DCXLMEM>")
 target_compile_options(ralloc_cxl PUBLIC "$<$<CONFIG:Release>:${RALLOC_COMPILE_OPTIONS};-DCXLMEM>")
 target_link_libraries(ralloc_cxl cxl_driver_api)
+
+add_executable(threadtest_cxlmem
+  ${CMAKE_CURRENT_SOURCE_DIR}/test/benchmark/threadtest.cpp
+)
+target_link_libraries(threadtest_cxlmem ralloc_cxl)
+
+add_executable(sh6bench_cxlmem
+  ${CMAKE_CURRENT_SOURCE_DIR}/test/benchmark/sh6bench.cpp
+)
+target_link_libraries(sh6bench_cxlmem ralloc_cxl)
+
+add_executable(larson_cxlmem
+  ${CMAKE_CURRENT_SOURCE_DIR}/test/benchmark/larson.cpp
+)
+target_link_libraries(larson_cxlmem ralloc_cxl)
+
+add_executable(prod-con_cxlmem
+  ${CMAKE_CURRENT_SOURCE_DIR}/test/benchmark/prod-con.cpp
+)
+target_link_libraries(prod-con_cxlmem ralloc_cxl)

@@ -24,7 +24,7 @@
  *                      (no tests for alloc, realloc, free individually)
  *  SYS_MULTI_THREAD=1  Test with multiple threads (OS/2, NT, HP, Solaris only)
  *  SMARTHEAP=1         Required when compiling if linking with SmartHeap lib
- * 
+ *
  *
  */
 
@@ -96,7 +96,7 @@ unsigned uMaxBlockSize = 1000;
 unsigned uMinBlockSize = 1;
 unsigned long ulCallCount = 1000;
 
-unsigned long promptAndRead(char *msg, unsigned long defaultVal, char fmtCh);
+unsigned long promptAndRead(const char *msg, unsigned long defaultVal, char fmtCh);
 
 unsigned uThreadCount = 8;
 ThreadID RunThread(void (*fn)(void *), void *arg);
@@ -119,12 +119,12 @@ pthread_barrier_t barrier;
 
 int main(int argc, char *argv[])
 {
-	clock_t startCPU;
-	time_t startTime;
-	double elapsedTime, cpuTime;
+	clock_t startCPU = 0;
+	time_t startTime = 0;
+	double elapsedTime = 0, cpuTime = 0;
 
-	uint64_t start_;
-	uint64_t end_;
+	uint64_t start_ = 0;
+	uint64_t end_ = 0;
 
 	setbuf(stdout, NULL);  /* turn off buffering for output */
 
@@ -143,25 +143,25 @@ int main(int argc, char *argv[])
 
 
 	unsigned i;
-	int *threadArg = malloc(uThreadCount*sizeof(int));
+	int *threadArg = (int *)malloc(uThreadCount*sizeof(int));
 	ThreadID *tids;
 
 	uThreadCount = (int)promptAndRead("threads", GetNumProcessors(), 'u');
 	pthread_barrier_init(&barrier,NULL,uThreadCount);
 	pm_init();
 
-	printf("\nparams: call count: %u, min size: %u, max size: %u, threads: %u\n", ulCallCount, uMinBlockSize, uMaxBlockSize, uThreadCount);
+	printf("\nparams: call count: %lu, min size: %u, max size: %u, threads: %u\n", ulCallCount, uMinBlockSize, uMaxBlockSize, uThreadCount);
 
 	if (uThreadCount < 1)
 		uThreadCount = 1;
 	ulCallCount /= uThreadCount;
-	if ((tids = malloc(sizeof(ThreadID) * uThreadCount)) != NULL){
+	if ((tids = (ThreadID *)malloc(sizeof(ThreadID) * uThreadCount)) != NULL){
 		startCPU = clock();
 		startTime = time(NULL);
 		start_ = rdtsc();
 		for (i = 0;  i < uThreadCount;  i++){
 			threadArg[i] = i;
-			if (THREAD_EQ(tids[i] = 
+			if (THREAD_EQ(tids[i] =
 				RunThread(doBench, &threadArg[i]),THREAD_NULL)){
 				fprintf(fout, "\nfailed to start thread #%d", i);
 				break;
@@ -169,22 +169,21 @@ int main(int argc, char *argv[])
 		}
 		WaitForThreads(tids, uThreadCount);
 		free(tids);
+		end_ = rdtsc();
+		elapsedTime = difftime(time(NULL), startTime);
+		cpuTime = (double)(clock()-startCPU) / (double)CLOCKS_PER_SEC;
+
+		fprintf_silent(fout, "\n");
+		fprintf(fout, "\nTotal elapsed time"
+				  " for %d threads"
+				  ": %.2f (%.4f CPU)\n",
+				  uThreadCount,
+				  elapsedTime, cpuTime);
+
+		fprintf(fout, "\nrdtsc time: %f\n", ((double)end_ - (double)start_)/kCPUSpeed);
 	}
 	if (threadArg)
 		free(threadArg);
-
-	end_ = rdtsc();
-	elapsedTime = difftime(time(NULL), startTime);
-	cpuTime = (double)(clock()-startCPU) / (double)CLOCKS_PER_SEC;
-
-	fprintf_silent(fout, "\n");
-	fprintf(fout, "\nTotal elapsed time"
-			  " for %d threads"
-			  ": %.2f (%.4f CPU)\n",
-			  uThreadCount,
-			  elapsedTime, cpuTime);
-
-	fprintf(fout, "\nrdtsc time: %f\n", ((double)end_ - (double)start_)/kCPUSpeed);
 
 	if (fin != stdin)
 		fclose(fin);
@@ -195,7 +194,7 @@ int main(int argc, char *argv[])
 }
 
 void doBench(void *arg)
-{ 
+{
 #ifdef THREAD_PINNING
     int task_id;
     int core_id;
@@ -217,14 +216,14 @@ void doBench(void *arg)
 	exit(1);
     }
     if (!CPU_ISSET(core_id, &cpuset)){
-   	fprintf(stderr, "WARNING: thread aiming for cpu %d is pinned elsewhere.\n", core_id);	 
+   	fprintf(stderr, "WARNING: thread aiming for cpu %d is pinned elsewhere.\n", core_id);
     } else {
     	// fprintf(stderr, "thread pinning on cpu %d succeeded.\n", core_id);
     }
 	pthread_barrier_wait(&barrier);
 
 #endif
-	char **memory = pm_malloc(ulCallCount * sizeof(void *));
+	char **memory = (char **)pm_malloc(ulCallCount * sizeof(void *));
 	int	size_base, size, iterations;
 	int	repeat = ulCallCount;
 	char **mp = memory;
@@ -232,11 +231,11 @@ void doBench(void *arg)
 	char **save_start = mpe;
 	char **save_end = mpe;
 
-	while (repeat--){ 
-	for (size_base = uMinBlockSize;
-		 size_base < uMaxBlockSize;
+	while (repeat--){
+	for (size_base = (int)uMinBlockSize;
+		 size_base < (int)uMaxBlockSize;
 		 size_base = size_base * 3 / 2 + 1){
-		for (size = size_base; size >= uMinBlockSize; size /= 2){
+		for (size = size_base; size >= (int)uMinBlockSize; size /= 2){
 			/* allocate smaller blocks more often than large */
 			iterations = 1;
 
@@ -249,7 +248,7 @@ void doBench(void *arg)
 			if (size < 100)
 				iterations *= 5;
 
-			while (iterations--){ 
+			while (iterations--){
 				if (!memory || !(*mp = (char *)pm_malloc(size))){
 					printf("Out of memory\n");
 					_exit (1);
@@ -265,7 +264,7 @@ void doBench(void *arg)
 					/* if we've reached the end of the malloc buffer */
 					mp = memory;
 					/* mark the next portion of the buffer */
-					save_start = save_end;  
+					save_start = save_end;
 					if (save_start >= mpe) save_start = mp;
 					save_end = save_start + (ulCallCount / 5);
 					if (save_end > mpe) save_end = mpe;
@@ -304,12 +303,12 @@ void doBench(void *arg)
 	pm_free(memory);
 }
 
-unsigned long promptAndRead(char *msg, unsigned long defaultVal, char fmtCh)
+unsigned long promptAndRead(const char *msg, unsigned long defaultVal, char fmtCh)
 {
 	char *arg = NULL, *err;
 	unsigned long result;
+	char buf[12];
 	{
-		char buf[12];
 		static char fmt[] = "\n%s [%lu]: ";
 		fmt[7] = fmtCh;
 		fprintf_silent(fout, fmt, msg, defaultVal);
@@ -330,7 +329,7 @@ unsigned long promptAndRead(char *msg, unsigned long defaultVal, char fmtCh)
 ThreadID RunThread(void (*fn)(void *), void *arg)
 {
 	ThreadID result = THREAD_NULL;
-	
+
 	pthread_attr_t attr;
 	pthread_attr_init(&attr);
 #ifdef RALLOC
