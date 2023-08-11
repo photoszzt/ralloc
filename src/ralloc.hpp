@@ -10,9 +10,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#ifdef __cplusplus
-/* return 1 if it's a restart, otherwise 0. */
-extern "C" int RP_init(const char* _id, uint64_t size = 5*1024*1024*1024ULL);
 #include "BaseMeta.hpp"
 namespace ralloc{
     extern bool initialized;
@@ -25,12 +22,10 @@ T* RP_get_root(uint64_t i){
     return ralloc::base_md->get_root<T>(i);
 }
 extern "C"{
-#else /* __cplusplus ends */
 // This is a version for pure c only
 void* RP_get_root_c(uint64_t i);
 /* return 1 if it's a restart, otherwise 0. */
 int RP_init(const char* _id, uint64_t size);
-#endif
 
 /* return 1 if it's dirty, otherwise 0. */
 int RP_recover();
@@ -45,9 +40,7 @@ void* RP_realloc(void* ptr, size_t new_size);
 int RP_in_prange(void* ptr);
 /* return 1 if the query is invalid, otherwise 0 and write start and end addr to the parameter. */
 int RP_region_range(int idx, void** start_addr, void** end_addr);
-#ifdef __cplusplus
 }
-#endif
 
 #define RP_pthread_create(thd, attr, f, arg) pm_thread_create(thd, attr, f, arg)
 /*
