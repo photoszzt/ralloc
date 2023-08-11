@@ -30,6 +30,7 @@ fn main() -> anyhow::Result<()> {
                 log::info!("{:?}", command);
 
                 match command {
+                    rpc::Command::Crash => panic!(),
                     rpc::Command::Init { id, size } => {
                         let id = ffi::CString::new(id).expect("Coordinator sent null byte in path");
                         let restart = match unsafe { sys::RP_init(id.as_ptr(), size) } {

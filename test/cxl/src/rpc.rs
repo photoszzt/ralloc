@@ -5,6 +5,7 @@ use serde::Serialize;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Command {
+    Crash,
     Init { id: String, size: u64 },
     Malloc { size: usize },
     Free { address: usize },
