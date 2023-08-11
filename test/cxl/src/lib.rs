@@ -1,5 +1,2 @@
+pub mod rpc;
 pub mod sys;
-
-pub enum Message {
-    Init,
-}
