@@ -20,6 +20,10 @@ pub enum Response {
 pub struct Connection(TcpStream);
 
 impl Connection {
+    pub fn new(stream: TcpStream) -> Self {
+        Self(stream)
+    }
+
     pub fn send(&mut self, commands: &[Command]) -> anyhow::Result<Response> {
         bincode::serialize_into(&mut self.0, commands)?;
         bincode::deserialize_from(&mut self.0).map_err(anyhow::Error::from)
