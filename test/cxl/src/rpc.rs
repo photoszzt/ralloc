@@ -5,7 +5,7 @@ use serde::Serialize;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Command {
-    Crash,
+    Crash { delay: u64, random: bool },
     Init { id: String, size: u64 },
     Malloc { size: usize },
     Free { address: usize },
@@ -13,6 +13,7 @@ pub enum Command {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Response {
+    Crash,
     Init { restart: bool },
     Malloc { address: usize },
     Free,
