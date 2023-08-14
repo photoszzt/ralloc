@@ -32,7 +32,7 @@ fn main() -> anyhow::Result<()> {
     let mut rng = Xoshiro256StarStar::seed_from_u64(command.seed);
 
     let mut workers = (0..2)
-        .map(|id| cxl::Worker::local(&command.path, 10100 + id))
+        .map(|id| cxl::Worker::local(&command.path, 10100 + id, command.seed + id as u64 + 1))
         .collect::<Result<Vec<_>, _>>()?;
 
     let sizes = Uniform::new_inclusive(1, 8192);

@@ -10,11 +10,16 @@ use cxl::rpc;
 use cxl::sys;
 use rand::distributions::Distribution as _;
 use rand::distributions::Uniform;
+use rand::SeedableRng;
+use rand_xoshiro::Xoshiro256StarStar;
 
 #[derive(Parser)]
 struct Options {
     #[arg(short, long)]
     address: SocketAddr,
+
+    #[arg(short, long)]
+    seed: u64,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -22,6 +27,7 @@ fn main() -> anyhow::Result<()> {
 
     let options = Options::parse();
     let listener = TcpListener::bind(options.address)?;
+    let mut rng = Xoshiro256StarStar::seed_from_u64(options.seed);
 
     let mut addresses = HashMap::new();
     let mut allocations = 0;
@@ -44,7 +50,7 @@ fn main() -> anyhow::Result<()> {
 
                         let duration = match random {
                             false => delay,
-                            true => Uniform::from(0..=delay).sample(&mut rand::thread_rng()),
+                            true => Uniform::from(0..=delay).sample(&mut rng),
                         };
 
                         log::info!("Crashing in {:.3}s...", duration as f64 / 1e9);

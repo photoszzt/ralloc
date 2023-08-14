@@ -16,11 +16,10 @@ pub struct Worker {
 }
 
 impl Worker {
-    pub fn local(path: &Path, port: u16) -> anyhow::Result<Self> {
+    pub fn local(path: &Path, port: u16, seed: u64) -> anyhow::Result<Self> {
         let address = format!("localhost:{port}");
         let handle = process::Command::new(path)
-            .arg("--address")
-            .arg(&address)
+            .args(["--address", &address, "--seed", &seed.to_string()])
             .spawn()?;
 
         // TODO: use more robust mechanism?
