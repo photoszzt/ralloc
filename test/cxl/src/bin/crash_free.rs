@@ -1,8 +1,8 @@
 use std::path::PathBuf;
-use std::thread;
 
 use clap::Parser;
 use cxl::rpc;
+use cxl::Coordinator;
 use rand::distributions::Uniform;
 use rand::prelude::Distribution as _;
 use rand::seq::SliceRandom as _;
@@ -31,9 +31,7 @@ fn main() -> anyhow::Result<()> {
     let command = Command::parse();
     let mut rng = Xoshiro256StarStar::seed_from_u64(command.seed);
 
-    let mut workers = (0..2)
-        .map(|id| cxl::Worker::local(&command.path, 10100 + id, command.seed + id as u64 + 1))
-        .collect::<Result<Vec<_>, _>>()?;
+    let mut coordinator = Coordinator::new(command.seed, &command.path, 2)?;
 
     let sizes = Uniform::new_inclusive(1, 8192);
 
@@ -51,18 +49,6 @@ fn main() -> anyhow::Result<()> {
 
     workload.extend(frees.into_iter().map(|index| rpc::Command::Free { index }));
 
-    thread::scope(|scope| {
-        let handles = workers
-            .iter_mut()
-            .map(|worker| scope.spawn(|| worker.send(&workload)))
-            .collect::<Vec<_>>();
-
-        handles
-            .into_iter()
-            .map(|handle| handle.join())
-            .collect::<Result<Vec<_>, _>>()
-    })
-    .expect("Failed to collect worker responses");
-
+    coordinator.send([&workload, &workload]);
     Ok(())
 }
