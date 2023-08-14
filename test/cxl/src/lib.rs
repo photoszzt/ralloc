@@ -1,7 +1,6 @@
 pub mod rpc;
 pub mod sys;
 
-use std::io;
 use std::net::TcpStream;
 use std::path::Path;
 use std::process;
@@ -12,7 +11,7 @@ use anyhow::anyhow;
 use anyhow::Context as _;
 
 pub struct Worker {
-    handle: process::Child,
+    _handle: process::Child,
     connection: rpc::Connection,
 }
 
@@ -31,10 +30,13 @@ impl Worker {
             .with_context(|| anyhow!("Failed to connect to {}", address))
             .map(rpc::Connection::new)?;
 
-        Ok(Worker { handle, connection })
+        Ok(Worker {
+            _handle: handle,
+            connection,
+        })
     }
 
-    pub fn send(&mut self, command: &[rpc::Command]) -> anyhow::Result<Vec<rpc::Response>> {
+    pub fn send(&mut self, command: &[rpc::Command]) -> anyhow::Result<()> {
         self.connection.send(command)
     }
 }

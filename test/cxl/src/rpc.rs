@@ -11,14 +11,6 @@ pub enum Command {
     Free { index: usize },
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum Response {
-    Crash,
-    Init { restart: bool },
-    Malloc { index: usize },
-    Free,
-}
-
 pub struct Connection(TcpStream);
 
 impl Connection {
@@ -26,16 +18,12 @@ impl Connection {
         Self(stream)
     }
 
-    pub fn send(&mut self, commands: &[Command]) -> anyhow::Result<Vec<Response>> {
+    pub fn send(&mut self, commands: &[Command]) -> anyhow::Result<()> {
         bincode::serialize_into(&mut self.0, commands)?;
-        bincode::deserialize_from(&mut self.0).map_err(anyhow::Error::from)
+        Ok(())
     }
 
     pub fn receive(&mut self) -> anyhow::Result<Vec<Command>> {
         bincode::deserialize_from(&mut self.0).map_err(anyhow::Error::from)
-    }
-
-    pub fn respond(&mut self, responses: &[Response]) -> anyhow::Result<()> {
-        bincode::serialize_into(&mut self.0, responses).map_err(anyhow::Error::from)
     }
 }

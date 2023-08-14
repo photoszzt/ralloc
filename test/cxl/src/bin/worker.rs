@@ -5,7 +5,6 @@ use std::net::TcpListener;
 use std::thread;
 use std::time::Duration;
 
-use anyhow::Context as _;
 use clap::Parser;
 use cxl::rpc;
 use cxl::sys;
@@ -24,7 +23,6 @@ fn main() -> anyhow::Result<()> {
     let options = Options::parse();
     let listener = TcpListener::bind(options.address)?;
 
-    let mut buffer = Vec::new();
     let mut addresses = HashMap::new();
     let mut allocations = 0;
 
@@ -35,7 +33,7 @@ fn main() -> anyhow::Result<()> {
         let mut connection = rpc::Connection::new(stream);
 
         loop {
-            let responses = connection.receive()?.into_iter().map(|command| {
+            for command in connection.receive()? {
                 log::info!("{:?}", command);
 
                 match command {
@@ -55,18 +53,15 @@ fn main() -> anyhow::Result<()> {
                             thread::sleep(Duration::from_nanos(duration));
                             std::process::abort()
                         });
-
-                        rpc::Response::Crash
                     }
                     rpc::Command::Init { id, size } => {
-                        let id = ffi::CString::new(id).expect("Coordinator sent null byte in path");
-                        let restart = match unsafe { sys::RP_init(id.as_ptr(), size) } {
-                            0 => false,
-                            1 => true,
+                        let id_ = ffi::CString::new(id.clone())
+                            .expect("Coordinator sent null byte in path");
+                        match unsafe { sys::RP_init(id_.as_ptr(), size) } {
+                            0 => log::info!("Initializing {}: no restart", id),
+                            1 => log::info!("Initializing {}: restarted!", id),
                             _ => unreachable!(),
                         };
-
-                        rpc::Response::Init { restart }
                     }
                     rpc::Command::Malloc { size } => {
                         let address = unsafe { sys::RP_malloc(size) };
@@ -74,22 +69,13 @@ fn main() -> anyhow::Result<()> {
 
                         addresses.insert(index, address);
                         allocations += 1;
-
-                        rpc::Response::Malloc { index: allocations }
                     }
                     rpc::Command::Free { index } => {
                         unsafe { sys::RP_free(addresses[&index]) }
                         addresses.remove(&index);
-                        rpc::Response::Free
                     }
                 }
-            });
-
-            buffer.clear();
-            buffer.extend(responses);
-            connection
-                .respond(&buffer)
-                .context("Failed to send response")?;
+            }
         }
     }
 }
