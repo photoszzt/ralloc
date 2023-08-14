@@ -9,6 +9,8 @@
 
 
 #include <assert.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "pfence_util.h"
 
@@ -52,6 +54,14 @@ enum RegionIndex : int {
 #else
   #define DBG_PRINT(msg, ...)
 #endif
+
+inline void crash(const char* id) {
+    if (const char* value = getenv("RALLOC_CRASH")) {
+        if (strcmp(value, id) == 0) {
+            abort();
+        }
+    }
+}
 
 /* SHM_SIMULATING switches to compatible mode for machines without real persistent memory. */
 #ifdef SHM_SIMULATING

@@ -116,7 +116,7 @@ void RP_free(void* ptr){
 
 void* RP_set_root(void* ptr, uint64_t i){
     if(ralloc::initialized==false){
-        RP_init("no_explicit_init");
+        RP_init("no_explicit_init", DEFAULT_HEAP_SIZE);
     }
     return base_md->set_root(ptr,i);
 }

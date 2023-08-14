@@ -24,6 +24,9 @@ T* RP_get_root(uint64_t i){
 extern "C"{
 // This is a version for pure c only
 void* RP_get_root_c(uint64_t i);
+
+const uint64_t DEFAULT_HEAP_SIZE = 5*1024*1024*1024ULL;
+
 /* return 1 if it's a restart, otherwise 0. */
 int RP_init(const char* _id, uint64_t size);
 
