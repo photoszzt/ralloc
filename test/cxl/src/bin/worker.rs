@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::ffi;
 use std::net::SocketAddr;
 use std::net::TcpListener;
@@ -24,6 +25,8 @@ fn main() -> anyhow::Result<()> {
     let listener = TcpListener::bind(options.address)?;
 
     let mut buffer = Vec::new();
+    let mut addresses = HashMap::new();
+    let mut allocations = 0;
 
     loop {
         let (stream, address) = listener.accept()?;
@@ -38,7 +41,7 @@ fn main() -> anyhow::Result<()> {
                 match command {
                     rpc::Command::Crash { delay, random } => {
                         if delay == 0 {
-                            panic!();
+                            std::process::abort()
                         }
 
                         let duration = match random {
@@ -50,7 +53,7 @@ fn main() -> anyhow::Result<()> {
 
                         std::thread::spawn(move || {
                             thread::sleep(Duration::from_nanos(duration));
-                            panic!();
+                            std::process::abort()
                         });
 
                         rpc::Response::Crash
@@ -66,11 +69,17 @@ fn main() -> anyhow::Result<()> {
                         rpc::Response::Init { restart }
                     }
                     rpc::Command::Malloc { size } => {
-                        let address = unsafe { sys::RP_malloc(size) } as usize;
-                        rpc::Response::Malloc { address }
+                        let address = unsafe { sys::RP_malloc(size) };
+                        let index = allocations;
+
+                        addresses.insert(index, address);
+                        allocations += 1;
+
+                        rpc::Response::Malloc { index: allocations }
                     }
-                    rpc::Command::Free { address } => {
-                        unsafe { sys::RP_free(address as *mut ffi::c_void) }
+                    rpc::Command::Free { index } => {
+                        unsafe { sys::RP_free(addresses[&index]) }
+                        addresses.remove(&index);
                         rpc::Response::Free
                     }
                 }

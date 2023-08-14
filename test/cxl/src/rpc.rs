@@ -8,14 +8,14 @@ pub enum Command {
     Crash { delay: u64, random: bool },
     Init { id: String, size: u64 },
     Malloc { size: usize },
-    Free { address: usize },
+    Free { index: usize },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Response {
     Crash,
     Init { restart: bool },
-    Malloc { address: usize },
+    Malloc { index: usize },
     Free,
 }
 
@@ -26,7 +26,7 @@ impl Connection {
         Self(stream)
     }
 
-    pub fn send(&mut self, commands: &[Command]) -> anyhow::Result<Response> {
+    pub fn send(&mut self, commands: &[Command]) -> anyhow::Result<Vec<Response>> {
         bincode::serialize_into(&mut self.0, commands)?;
         bincode::deserialize_from(&mut self.0).map_err(anyhow::Error::from)
     }
