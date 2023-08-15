@@ -37,7 +37,7 @@ fn main() -> anyhow::Result<()> {
 
     let mut workload = vec![rpc::Command::Init {
         id: String::from("cf"),
-        size: 2u64.pow(30),
+        size: 2u64.pow(30) + 64 * 2u64.pow(10),
     }];
 
     workload.extend((0..100).map(|_| rpc::Command::Malloc {
