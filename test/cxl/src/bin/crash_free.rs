@@ -36,7 +36,7 @@ fn main() -> anyhow::Result<()> {
     let sizes = Uniform::new_inclusive(1, 8192);
 
     let mut workload = vec![rpc::Command::Init {
-        id: String::from("crash_free"),
+        id: String::from("cf"),
         size: 2u64.pow(30),
     }];
 
