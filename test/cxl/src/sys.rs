@@ -8,7 +8,7 @@ use std::os::fd::AsRawFd as _;
 
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
-const IOCTL_MAGIC: u32 = 0xf;
+const IOCTL_MAGIC: u32 = b'f' as u32;
 
 ioctl_sys::ioctl!(try none _cxl_init_meta with IOCTL_MAGIC, 9);
 
