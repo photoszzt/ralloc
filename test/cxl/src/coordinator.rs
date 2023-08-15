@@ -9,9 +9,9 @@ pub struct Coordinator {
 }
 
 impl Coordinator {
-    pub fn new(seed: u64, path: &Path, workers: usize) -> anyhow::Result<Self> {
+    pub fn new(seed: u64, path: &Path, workers: u8) -> anyhow::Result<Self> {
         let workers = (0..workers)
-            .map(|id| Worker::local(path, 10100 + id as u16, seed + id as u64 + 1))
+            .map(|id| Worker::local(id, path, 10100 + id as u16, seed + id as u64 + 1))
             .collect::<Result<Vec<_>, _>>()?;
 
         Ok(Self { workers })
@@ -36,5 +36,9 @@ impl Coordinator {
                 .collect::<Result<Vec<_>, _>>()
         })
         .expect("Failed to collect worker responses");
+    }
+
+    pub fn wait(self) -> anyhow::Result<()> {
+        self.workers.into_iter().try_for_each(Worker::wait)
     }
 }

@@ -10,12 +10,13 @@ use anyhow::Context as _;
 use crate::rpc;
 
 pub struct Worker {
-    _handle: process::Child,
+    id: u8,
+    handle: process::Child,
     connection: rpc::Connection,
 }
 
 impl Worker {
-    pub fn local(path: &Path, port: u16, seed: u64) -> anyhow::Result<Self> {
+    pub fn local(id: u8, path: &Path, port: u16, seed: u64) -> anyhow::Result<Self> {
         let address = format!("localhost:{port}");
         let handle = process::Command::new(path)
             .args(["--address", &address, "--seed", &seed.to_string()])
@@ -29,12 +30,24 @@ impl Worker {
             .map(rpc::Connection::new)?;
 
         Ok(Worker {
-            _handle: handle,
+            id,
+            handle,
             connection,
         })
     }
 
     pub fn send(&mut self, command: &[rpc::Command]) -> anyhow::Result<()> {
         self.connection.send(command)
+    }
+
+    pub fn wait(mut self) -> anyhow::Result<()> {
+        match self
+            .handle
+            .wait()
+            .with_context(|| anyhow!("Failed to wait on worker {}", self.id))?
+        {
+            status if status.success() => Ok(()),
+            status => Err(anyhow!("Worker {} failed with status: {}", self.id, status)),
+        }
     }
 }

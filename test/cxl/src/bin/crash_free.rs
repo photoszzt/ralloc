@@ -50,5 +50,6 @@ fn main() -> anyhow::Result<()> {
     workload.extend(frees.into_iter().map(|index| rpc::Command::Free { index }));
 
     coordinator.send([&workload, &workload]);
+    coordinator.wait()?;
     Ok(())
 }
