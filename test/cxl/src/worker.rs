@@ -17,7 +17,7 @@ pub struct Worker {
 
 impl Worker {
     pub fn local(id: u8, path: &Path, port: u16, seed: u64) -> anyhow::Result<Self> {
-        let address = format!("localhost:{port}");
+        let address = format!("127.0.0.1:{port}");
         let handle = process::Command::new(path)
             .args(["--address", &address, "--seed", &seed.to_string()])
             .spawn()?;
