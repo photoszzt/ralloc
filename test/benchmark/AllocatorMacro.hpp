@@ -63,7 +63,9 @@ volatile static int init_count = 0;
   inline void pm_free(void* p) { RP_free(p); }
   inline void* pm_realloc(void* ptr, size_t new_size) { return RP_realloc(ptr, new_size); }
   inline void* pm_calloc(size_t num, size_t size) { return RP_calloc(num, size); }
-  inline int pm_init() { return RP_init("test", REGION_SIZE); }
+  // The process ID and process count parameters are only relevant for
+  // recovery, which these benchmarks don't seem to exercise.
+  inline int pm_init() { return RP_init("test", REGION_SIZE, 0, 1); }
   inline void pm_close() { RP_close(); }
   inline void pm_recover() { RP_recover(); }
   template<class T>

@@ -18,6 +18,7 @@
 #include <iostream>
 #include <atomic>
 
+#include "biased_lock.h"
 #include "BaseMeta.hpp"
 
 /*
@@ -149,39 +150,6 @@ inline bool AtomicCrossPtrCnt<T,idx>::compare_exchange_strong(ptr_cnt<T>& expect
     return ret;
 }
 
-void BaseMeta::set_dirty(){
-    // this must be called AFTER is_dirty
-    int s = pthread_mutex_trylock(&dirty_mtx);
-    assert(s!=EOWNERDEAD&&"previous apps died! call is_dirty first!");
-}
-
-bool BaseMeta::is_dirty(){
-    int s = pthread_mutex_trylock(&dirty_mtx);
-    switch(s){
-    case EOWNERDEAD:
-        pthread_mutex_consistent(&dirty_mtx);
-        return true;
-    case 0:
-        // succeeds
-        pthread_mutex_unlock(&dirty_mtx);
-        return false;
-    case EBUSY:
-    case EAGAIN:
-        return false;
-    case EINVAL:
-        pthread_mutex_destroy(&dirty_mtx);
-        pthread_mutex_init(&dirty_mtx, &dirty_attr);
-        return true;
-    default:
-        printf("something unexpected happens when check dirty_mtx\n");
-        exit(1);
-    }// switch(s)
-}
-
-void BaseMeta::set_clean(){
-    pthread_mutex_unlock(&dirty_mtx);
-}
-
 BaseMeta::BaseMeta() noexcept
 :
     avail_sb(),
@@ -189,12 +157,9 @@ BaseMeta::BaseMeta() noexcept
     // thread_num(thd_num) {
 {
     /* allocate these persistent data into specific memory address */
-    pthread_mutexattr_init(&dirty_attr);
-    pthread_mutexattr_setrobust(&dirty_attr, PTHREAD_MUTEX_ROBUST);
-    pthread_mutex_init(&dirty_mtx, &dirty_attr);
-    set_dirty();
-    FLUSH(&dirty_attr);
-    FLUSH(&dirty_mtx);
+    biased_init(&gc_lock);
+    FLUSH(&gc_lock);
+
     /* heaps init */
     for (size_t idx = 0; idx < MAX_SZ_IDX; ++idx){
         ProcHeap& heap = heaps[idx];

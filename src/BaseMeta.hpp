@@ -24,6 +24,7 @@
 #include <pthread.h>
 
 #include "pm_config.hpp"
+#include "biased_lock.h"
 
 #include "RegionManager.hpp"
 #include "SizeClass.hpp"
@@ -66,6 +67,9 @@
 
 class BaseMeta;
 namespace ralloc{
+    extern uint8_t process_id;
+    extern uint8_t process_count;
+
     /* manager to map, remap, and unmap the heap */
     // regions manager
     extern Regions* _rgs;//initialized when ralloc constructs
@@ -353,8 +357,9 @@ class BaseMeta {
 public:
     // unused small sb
     RP_TRANSIENT AtomicCrossPtrCnt<Descriptor, DESC_IDX> avail_sb;
-    RP_PERSIST pthread_mutexattr_t dirty_attr;
-    RP_PERSIST pthread_mutex_t dirty_mtx;
+
+    // Enforce mutual exclusion between GC process and applications
+    RP_PERSIST biased_lock gc_lock;
 
     RP_PERSIST ProcHeap heaps[MAX_SZ_IDX];
     RP_PERSIST CrossPtr<char, SB_IDX> roots[MAX_ROOTS];
@@ -368,10 +373,7 @@ public:
     }
     void* do_malloc(size_t size);
     void do_free(void* ptr);
-    bool is_dirty();
-    // set_dirty must be called AFTER is_dirty
-    void set_dirty();
-    void set_clean();
+
     inline uint64_t min(uint64_t a, uint64_t b){return a>b?b:a;}
     inline uint64_t max(uint64_t a, uint64_t b){return a>b?a:b;}
     inline uint64_t round_up(uint64_t numToRound, uint64_t multiple) {
@@ -402,19 +404,17 @@ public:
         };
         return static_cast<T*>(roots[i]);
     }
-    bool restart(){
+    void restart(){
         // Restart, setting values and flags to normal
         // Should be called during restart
-        bool ret = is_dirty();
-        if(ret) {
+        if (biased_write_trylock(&gc_lock, ralloc::process_id, ralloc::process_count)) {
             GarbageCollection gc;
             gc();
+            biased_write_unlock(&gc_lock, ralloc::process_id);
+        } else {
+            biased_recover(&gc_lock, ralloc::process_id);
         }
         FLUSHFENCE;
-        // here restart is done, and "dirty" should be set to true until
-        // writeback() is called so that crash will result in a true dirty.
-        set_dirty();
-        return ret;
     }
     void writeback(){
         // Give back tcached blocks *Wentao: no actually ~TCache will do this*
@@ -427,7 +427,6 @@ public:
             FLUSH(addr);
         }
         FLUSHFENCE;
-        set_clean();
     }
 
 private:

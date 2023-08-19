@@ -41,13 +41,14 @@ set(ralloc_inc
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}/../../driver_futex/uapi/
     ${CMAKE_CURRENT_SOURCE_DIR}/../../src/driver_api/
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../src/common/
 )
 target_include_directories(ralloc_cxl PUBLIC
   "$<BUILD_INTERFACE:${ralloc_inc}>"
 )
-target_compile_options(ralloc_cxl PUBLIC "$<$<CONFIG:Debug>:${RALLOC_COMPILE_OPTIONS};-DCXLMEM;-DDESTROY;-DDEBUG>")
-target_compile_options(ralloc_cxl PUBLIC "$<$<CONFIG:Release>:${RALLOC_COMPILE_OPTIONS};-DCXLMEM;-DDESTROY>")
-target_link_libraries(ralloc_cxl cxl_driver_api)
+target_compile_options(ralloc_cxl PUBLIC "$<$<CONFIG:Debug>:${RALLOC_COMPILE_OPTIONS};-DCXLMEM;-DDESTROY;-DDEBUG;-DCACHELINE_GRANULAR;-DUSE_JJ_AB_LOCK;-DMAX_PROCESS_SHIFT=6>")
+target_compile_options(ralloc_cxl PUBLIC "$<$<CONFIG:Release>:${RALLOC_COMPILE_OPTIONS};-DCXLMEM;-DDESTROY;-DCACHELINE_GRANULAR;-DUSE_JJ_AB_LOCK;-DMAX_PROCESS_SHIFT=6>")
+target_link_libraries(ralloc_cxl cxl_driver_api atomic)
 
 add_executable(threadtest_cxlmem
   ${CMAKE_CURRENT_SOURCE_DIR}/test/benchmark/threadtest.cpp

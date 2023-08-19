@@ -16,11 +16,14 @@
 #include "RegionManager.hpp"
 #include "BaseMeta.hpp"
 #include "SizeClass.hpp"
+#include "biased_lock.h"
 #include "pm_config.hpp"
 
 using namespace std;
 
 namespace ralloc{
+    uint8_t process_id;
+    uint8_t process_count;
     bool initialized = false;
     /* persistent metadata and their layout */
     BaseMeta* base_md;
@@ -31,7 +34,7 @@ namespace ralloc{
 using namespace ralloc;
 extern void public_flush_cache();
 
-int _RP_init(const char* _id, uint64_t size){
+int _RP_init(const char* _id, uint64_t size, uint8_t process_id, uint8_t process_count){
     string filepath;
     string id(_id);
     // thread_num = thd_num;
@@ -61,14 +64,17 @@ int _RP_init(const char* _id, uint64_t size){
         break;
     } // switch
     }
+
+    ralloc::process_id = process_id;
+    ralloc::process_count = process_count;
     initialized = true;
     return (int)restart;
 }
 
 struct RallocHolder{
     int init_ret_val;
-    RallocHolder(const char* _id, uint64_t size){
-        init_ret_val = _RP_init(_id,size);
+    RallocHolder(const char* _id, uint64_t size, uint8_t process_id, uint8_t process_count){
+        init_ret_val = _RP_init(_id, size, process_id, process_count);
     }
     ~RallocHolder(){
         // #ifndef MEM_CONSUME_TEST
@@ -90,13 +96,13 @@ struct RallocHolder{
  * if such a heap doesn't exist, create one. aka start.
  * id is the distinguishable identity of applications.
  */
-int RP_init(const char* _id, uint64_t size){
-    static RallocHolder _holder(_id,size);
+int RP_init(const char* _id, uint64_t size, uint8_t process_id, uint8_t process_count){
+    static RallocHolder _holder(_id,size, process_id, process_count);
     return _holder.init_ret_val;
 }
 
-int RP_recover(){
-    return (int) base_md->restart();
+void RP_recover(){
+    base_md->restart();
 }
 
 // we assume RP_close is called by the last exiting thread.
@@ -106,35 +112,49 @@ void RP_close(){
 
 void* RP_malloc(size_t sz){
     assert(initialized&&"RPMalloc isn't initialized!");
-    return base_md->do_malloc(sz);
+    biased_read_lock(&base_md->gc_lock, ralloc::process_id);
+    void* pointer = base_md->do_malloc(sz);
+    biased_read_unlock(&base_md->gc_lock, ralloc::process_id);
+    return pointer;
 }
 
 void RP_free(void* ptr){
     assert(initialized&&"RPMalloc isn't initialized!");
+    biased_read_lock(&base_md->gc_lock, ralloc::process_id);
     base_md->do_free(ptr);
+    biased_read_unlock(&base_md->gc_lock, ralloc::process_id);
 }
 
 void* RP_set_root(void* ptr, uint64_t i){
-    if(ralloc::initialized==false){
-        RP_init("no_explicit_init", DEFAULT_HEAP_SIZE);
-    }
-    return base_md->set_root(ptr,i);
+    assert(initialized&&"Ralloc isn't initialized!");
+    biased_read_lock(&base_md->gc_lock, ralloc::process_id);
+    void* pointer = base_md->set_root(ptr,i);
+    biased_read_unlock(&base_md->gc_lock, ralloc::process_id);
+    return pointer;
 }
 void* RP_get_root_c(uint64_t i){
     assert(initialized);
-    return (void*)base_md->get_root<char>(i);
+    biased_read_lock(&base_md->gc_lock, ralloc::process_id);
+    void* pointer = base_md->get_root<char>(i);
+    biased_read_unlock(&base_md->gc_lock, ralloc::process_id);
+    return pointer;
 }
 
 // return the size of ptr in byte.
 // No check for whether ptr is allocated or isn't null
 size_t RP_malloc_size(void* ptr){
+    biased_read_lock(&base_md->gc_lock, ralloc::process_id);
     const Descriptor* desc = base_md->desc_lookup(ptr);
-    return (size_t)desc->block_size;
+    size_t size = (size_t)desc->block_size;
+    biased_read_unlock(&base_md->gc_lock, ralloc::process_id);
+    return size;
 }
 
 void* RP_realloc(void* ptr, size_t new_size){
     if(ptr == nullptr) return RP_malloc(new_size);
-    if(!_rgs->in_range(SB_IDX, ptr)) return nullptr;
+    // TODO: does this check conflict with the stop-the-world GC?
+    // We'll assume the caller must provide a valid pointer.
+    // if(!_rgs->in_range(SB_IDX, ptr)) return nullptr;
     size_t old_size = RP_malloc_size(ptr);
     if(old_size == new_size) {
         return ptr;

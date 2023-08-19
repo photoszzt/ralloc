@@ -12,6 +12,8 @@
 
 #include "BaseMeta.hpp"
 namespace ralloc{
+    extern uint8_t process_id;
+    extern uint8_t process_count;
     extern bool initialized;
     /* persistent metadata and their layout */
     extern BaseMeta* base_md;
@@ -28,10 +30,9 @@ void* RP_get_root_c(uint64_t i);
 const uint64_t DEFAULT_HEAP_SIZE = 5*1024*1024*1024ULL;
 
 /* return 1 if it's a restart, otherwise 0. */
-int RP_init(const char* _id, uint64_t size);
+int RP_init(const char* _id, uint64_t size, uint8_t process_id, uint8_t process_count);
 
-/* return 1 if it's dirty, otherwise 0. */
-int RP_recover();
+void RP_recover();
 void RP_close();
 void* RP_malloc(size_t sz);
 void RP_free(void* ptr);
