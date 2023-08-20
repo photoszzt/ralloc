@@ -20,9 +20,10 @@ add_compile_options("$<$<COMPILE_LANGUAGE:C>:-g>")
 set(CMAKE_C_EXTENSIONS ON) #...with compiler extensions like gnu++11
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+# inform compiler that double word cmpxchg exists on the arch
 set(RALLOC_COMPILE_OPTIONS -Wall -Wno-unused-variable
     -Wno-unused-but-set-variable -Wno-unused-parameter
-    -fno-omit-frame-pointer -Wno-conversion -Wno-cast-align -DRALLOC)
+    -fno-omit-frame-pointer -Wno-conversion -Wno-cast-align -DRALLOC -mcx16)
 if(CMAKE_BUILD_TYPE STREQUAL "Release")
     set(RALLOC_COMPILE_OPTIONS ${RALLOC_COMPILE_OPTIONS} -O3 -flto)
 endif()
