@@ -12,7 +12,7 @@ fn main() -> anyhow::Result<()> {
         .context("Failed to open /dev/cxl_ivpci0: is the cxl_ivpci.ko module inserted?")?;
     eprintln!("Opened CXL device");
 
-    sys::cxl_recover_meta(&cxl).context("Failed to call cxl_init_meta ioctl")?;
+    sys::cxl_recover_meta(&cxl).context("Failed to call cxl_recover_meta ioctl")?;
     eprintln!("Recovered CXL metadata");
 
     let id = std::ffi::CString::new("sm").unwrap();
