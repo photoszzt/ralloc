@@ -196,6 +196,7 @@ dependencies = [
  "clap",
  "env_logger",
  "ioctl-sys",
+ "libc",
  "log",
  "rand",
  "rand_xoshiro",
