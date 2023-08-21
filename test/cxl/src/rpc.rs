@@ -9,6 +9,7 @@ pub enum Command {
     Init { id: String, size: u64 },
     Malloc { size: usize },
     Free { index: usize },
+    Exit,
 }
 
 pub struct Connection(TcpStream);

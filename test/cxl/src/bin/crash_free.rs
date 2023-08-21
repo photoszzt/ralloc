@@ -8,6 +8,9 @@ use rand::prelude::Distribution as _;
 use rand::seq::SliceRandom as _;
 use rand::SeedableRng as _;
 use rand_xoshiro::Xoshiro256StarStar;
+use rayon::prelude::IndexedParallelIterator;
+use rayon::prelude::IntoParallelIterator;
+use rayon::prelude::ParallelIterator;
 
 #[derive(Parser)]
 struct Command {
@@ -23,33 +26,67 @@ struct Command {
     #[arg(short, long)]
     workers: usize,
 
-    #[arg(short, long, default_value = "35092")]
+    #[arg(long, default_value = "35092")]
     seed: u64,
+
+    /// Heap size (defaults to 7GiB + 64KiB)
+    #[arg(short, long, default_value = "7516258304")]
+    size: u64,
+
+    /// Number of malloc/free operations in a batch
+    #[arg(short, long, default_value = "100")]
+    batch: usize,
+
+    /// Number of batches to issue
+    #[arg(short, long, default_value = "100")]
+    rounds: usize,
 }
 
 fn main() -> anyhow::Result<()> {
     let command = Command::parse();
-    let mut rng = Xoshiro256StarStar::seed_from_u64(command.seed);
 
-    let mut coordinator = Coordinator::new(command.seed, &command.path, 2)?;
+    let mut coordinator = Coordinator::new(command.seed, &command.path, command.workers as u8)?;
 
-    let sizes = Uniform::new_inclusive(1, 8192);
-
-    let mut workload = vec![rpc::Command::Init {
+    let uniform = Uniform::new_inclusive(1, 8193);
+    let initialize = [rpc::Command::Init {
         id: String::from("cf"),
-        size: 2u64.pow(30) + 64 * 2u64.pow(10),
+        size: command.size,
     }];
 
-    workload.extend((0..100).map(|_| rpc::Command::Malloc {
-        size: sizes.sample(&mut rng),
-    }));
+    for worker in coordinator.workers() {
+        worker.send(&initialize)?;
+    }
 
-    let mut frees = (0..100).collect::<Vec<_>>();
-    frees.shuffle(&mut rng);
+    coordinator
+        .workers()
+        .into_par_iter()
+        .enumerate()
+        .try_for_each(|(id, worker)| -> anyhow::Result<()> {
+            let mut workload = vec![rpc::Command::Malloc { size: 0 }; command.batch * 2];
+            let mut rng = Xoshiro256StarStar::seed_from_u64(command.seed + id as u64);
+            let mut shuffle = (0..command.batch).collect::<Vec<_>>();
 
-    workload.extend(frees.into_iter().map(|index| rpc::Command::Free { index }));
+            for round in 0..command.rounds {
+                for malloc in &mut workload[..command.batch] {
+                    *malloc = rpc::Command::Malloc {
+                        size: uniform.sample(&mut rng),
+                    };
+                }
 
-    coordinator.send([&workload, &workload]);
+                shuffle.shuffle(&mut rng);
+
+                for (free, index) in workload[command.batch..].iter_mut().zip(&shuffle) {
+                    *free = rpc::Command::Free {
+                        index: index + (round * command.batch),
+                    };
+                }
+
+                worker.send(&workload)?;
+            }
+
+            Ok(())
+        })?;
+
     coordinator.wait()?;
     Ok(())
 }

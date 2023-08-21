@@ -80,6 +80,13 @@ fn main() -> anyhow::Result<()> {
                         unsafe { sys::RP_free(addresses[&index]) }
                         addresses.remove(&index);
                     }
+                    rpc::Command::Exit => {
+                        log::info!("Exiting cleanly...");
+                        unsafe {
+                            sys::RP_close();
+                        }
+                        std::process::exit(0);
+                    }
                 }
             }
         }

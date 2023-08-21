@@ -1,5 +1,4 @@
 use std::path::Path;
-use std::thread;
 
 use crate::rpc;
 use crate::Worker;
@@ -17,28 +16,15 @@ impl Coordinator {
         Ok(Self { workers })
     }
 
-    pub fn send<II, I>(&mut self, workloads: II)
-    where
-        II: IntoIterator<Item = I>,
-        I: AsRef<[rpc::Command]> + Send,
-    {
-        thread::scope(|scope| {
-            let handles = self
-                .workers
-                .iter_mut()
-                .zip(workloads)
-                .map(|(worker, workload)| scope.spawn(move || worker.send(workload.as_ref())))
-                .collect::<Vec<_>>();
-
-            handles
-                .into_iter()
-                .map(|handle| handle.join())
-                .collect::<Result<Vec<_>, _>>()
-        })
-        .expect("Failed to collect worker responses");
+    pub fn workers(&mut self) -> &mut [Worker] {
+        &mut self.workers
     }
 
-    pub fn wait(self) -> anyhow::Result<()> {
+    pub fn wait(mut self) -> anyhow::Result<()> {
+        for worker in &mut self.workers {
+            worker.send(&[rpc::Command::Exit])?;
+        }
+
         self.workers.into_iter().try_for_each(Worker::wait)
     }
 }
