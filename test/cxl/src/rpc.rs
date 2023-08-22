@@ -11,6 +11,7 @@ pub enum Command {
     Init { id: String, size: u64 },
     Malloc { size: usize },
     Free { index: usize },
+    Recover,
     Exit,
 }
 

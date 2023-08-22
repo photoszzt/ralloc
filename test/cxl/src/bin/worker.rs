@@ -69,6 +69,8 @@ fn main() -> anyhow::Result<()> {
                     let heap_id_ = ffi::CString::new(heap_id.clone())
                         .expect("Coordinator sent null byte in path");
 
+                    log::info!("[{}]: initializing {}...", id, heap_id);
+
                     let restart = match unsafe {
                         sys::RP_init(
                             heap_id_.as_ptr(),
@@ -82,7 +84,14 @@ fn main() -> anyhow::Result<()> {
                         _ => unreachable!(),
                     };
 
-                    log::info!("[{}]: initializing {}, restart: {}", id, heap_id, restart);
+                    log::info!("[{}]: initialized {} (restart = {})", id, heap_id, restart);
+                }
+                rpc::Command::Recover => {
+                    log::info!("[{}]: recovering...", id);
+                    unsafe {
+                        sys::RP_recover();
+                    }
+                    log::info!("[{}]: recovered!", id);
                 }
                 rpc::Command::Malloc { size } => {
                     let address = unsafe {
