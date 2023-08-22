@@ -14,6 +14,9 @@ struct Command {
     #[arg(short, long, default_value = "/dev/cxl_ivpci0")]
     path: PathBuf,
 
+    #[arg(long, default_value = "rs")]
+    heap_id: String,
+
     #[arg(long, default_value = "7516258304")]
     heap_size: u64,
 
@@ -63,7 +66,7 @@ fn main() -> anyhow::Result<()> {
     sys::cxl_init_meta(&cxl).context("Failed to call cxl_init_meta ioctl")?;
     eprintln!("Initialized CXL metadata");
 
-    let id = CString::new("cf").unwrap();
+    let id = CString::new(command.heap_id).unwrap();
     unsafe {
         sys::RP_init(id.as_ptr(), command.heap_size, 0, 0);
     }
