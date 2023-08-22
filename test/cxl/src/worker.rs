@@ -57,7 +57,9 @@ impl Worker {
     }
 
     pub fn restart(&mut self) -> anyhow::Result<()> {
-        self.wait()?;
+        if let Err(error) = self.wait() {
+            log::warn!("[C]: {:?}", error);
+        }
 
         let (handle, connection) = spawn(self.id, self.count, &self.path, &self.listener)?;
         self.handle = handle;
