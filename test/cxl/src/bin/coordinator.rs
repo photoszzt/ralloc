@@ -23,7 +23,7 @@ struct Command {
     #[arg(short, long)]
     workers: usize,
 
-    #[arg(long, default_value = "35092")]
+    #[arg(long, default_value_t = 35092)]
     seed: u64,
 
     /// Heap id
@@ -31,15 +31,15 @@ struct Command {
     heap_id: String,
 
     /// Heap size (defaults to 7GiB + 64KiB)
-    #[arg(short, long, default_value = "7516258304")]
+    #[arg(short, long, default_value_t = 7516258304)]
     heap_size: u64,
 
     /// Number of malloc/free operations in a batch
-    #[arg(short, long, default_value = "100")]
+    #[arg(short, long, default_value_t = 100)]
     batch: usize,
 
     /// Number of batches to issue
-    #[arg(short, long, default_value = "100")]
+    #[arg(short, long, default_value_t = 100)]
     rounds: usize,
 
     #[command(subcommand)]
@@ -50,8 +50,17 @@ struct Command {
 enum Crash {
     Zero,
     One {
-        #[arg(short, long, default_value = "0")]
-        id: u8,
+        #[arg(short, long, use_value_delimiter = true, default_value = "0")]
+        ids: Vec<u8>,
+
+        #[arg(long)]
+        round: Option<usize>,
+
+        #[arg(long, default_value_t = 0)]
+        delay: u64,
+
+        #[arg(long)]
+        delay_random: bool,
 
         #[arg(short, long)]
         restart: bool,
@@ -77,18 +86,22 @@ fn main() -> anyhow::Result<()> {
             .workers()
             .into_par_iter()
             .try_for_each(|worker| command.crash_free(worker))?,
-        Crash::One { id, restart } => {
-            coordinator
-                .workers()
-                .into_par_iter()
-                .try_for_each(|worker| {
-                    if worker.id() == *id {
-                        command.crash(worker, *restart)
-                    } else {
-                        command.crash_free(worker)
-                    }
-                })?
-        }
+        Crash::One {
+            ids,
+            round,
+            delay,
+            delay_random,
+            restart,
+        } => coordinator
+            .workers()
+            .into_par_iter()
+            .try_for_each(|worker| {
+                if ids.contains(&worker.id()) {
+                    command.crash(worker, *round, *delay, *delay_random, *restart)
+                } else {
+                    command.crash_free(worker)
+                }
+            })?,
     }
 
     Ok(())
@@ -107,9 +120,16 @@ impl Command {
         Ok(())
     }
 
-    fn crash(&self, worker: &mut cxl::Worker, restart: bool) -> anyhow::Result<()> {
+    fn crash(
+        &self,
+        worker: &mut cxl::Worker,
+        round: Option<usize>,
+        delay: u64,
+        delay_random: bool,
+        restart: bool,
+    ) -> anyhow::Result<()> {
         let mut workload = Workload::new(self.batch, self.seed);
-        let crash = Uniform::new(0, self.rounds).sample(&mut workload.rng);
+        let crash = round.unwrap_or_else(|| Uniform::new(0, self.rounds).sample(&mut workload.rng));
 
         for _ in 0..crash {
             worker
@@ -118,8 +138,8 @@ impl Command {
         }
 
         worker.send(&[rpc::Command::Crash {
-            delay: 0,
-            random: false,
+            delay,
+            random: delay_random,
         }])?;
 
         if !restart {
