@@ -147,6 +147,7 @@ impl Command {
         }
 
         worker.restart()?;
+        workload.reset();
 
         worker.send(&[
             rpc::Command::Init {
@@ -186,6 +187,10 @@ impl Workload {
             shuffle,
             sizes,
         }
+    }
+
+    fn reset(&mut self) {
+        self.round = 0;
     }
 
     fn next(&mut self) -> &[rpc::Command] {
