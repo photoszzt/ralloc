@@ -3,8 +3,8 @@ use std::path::PathBuf;
 
 fn main() {
     println!("cargo:rustc-link-search=../../../../build_gcc_debug/bin");
-    println!("cargo:rustc-link-lib=ralloc_cxl");
-    println!("cargo:rustc-link-lib=cxl_driver_api");
+    println!("cargo:rustc-link-lib=ralloc_cxl_byte");
+    println!("cargo:rustc-link-lib=cxl_driver_api_byte");
     println!("cargo:rustc-link-lib=stdc++");
     println!("cargo:rustc-link-lib=atomic");
     println!("cargo:rustc-link-lib=asan");
