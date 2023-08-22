@@ -16,7 +16,7 @@
 #include "RegionManager.hpp"
 #include "BaseMeta.hpp"
 #include "SizeClass.hpp"
-#include "biased_lock.h"
+#include "biased_lock64.h"
 #include "pm_config.hpp"
 
 using namespace std;
@@ -112,41 +112,41 @@ void RP_close(){
 
 void* RP_malloc(size_t sz){
     assert(initialized&&"RPMalloc isn't initialized!");
-    biased_read_lock(&base_md->gc_lock, ralloc::process_id);
+    biased_read_lock_64(&base_md->gc_lock, ralloc::process_id);
     void* pointer = base_md->do_malloc(sz);
-    biased_read_unlock(&base_md->gc_lock, ralloc::process_id);
+    biased_read_unlock_64(&base_md->gc_lock, ralloc::process_id);
     return pointer;
 }
 
 void RP_free(void* ptr){
     assert(initialized&&"RPMalloc isn't initialized!");
-    biased_read_lock(&base_md->gc_lock, ralloc::process_id);
+    biased_read_lock_64(&base_md->gc_lock, ralloc::process_id);
     base_md->do_free(ptr);
-    biased_read_unlock(&base_md->gc_lock, ralloc::process_id);
+    biased_read_unlock_64(&base_md->gc_lock, ralloc::process_id);
 }
 
 void* RP_set_root(void* ptr, uint64_t i){
     assert(initialized&&"Ralloc isn't initialized!");
-    biased_read_lock(&base_md->gc_lock, ralloc::process_id);
+    biased_read_lock_64(&base_md->gc_lock, ralloc::process_id);
     void* pointer = base_md->set_root(ptr,i);
-    biased_read_unlock(&base_md->gc_lock, ralloc::process_id);
+    biased_read_unlock_64(&base_md->gc_lock, ralloc::process_id);
     return pointer;
 }
 void* RP_get_root_c(uint64_t i){
     assert(initialized);
-    biased_read_lock(&base_md->gc_lock, ralloc::process_id);
+    biased_read_lock_64(&base_md->gc_lock, ralloc::process_id);
     void* pointer = base_md->get_root<char>(i);
-    biased_read_unlock(&base_md->gc_lock, ralloc::process_id);
+    biased_read_unlock_64(&base_md->gc_lock, ralloc::process_id);
     return pointer;
 }
 
 // return the size of ptr in byte.
 // No check for whether ptr is allocated or isn't null
 size_t RP_malloc_size(void* ptr){
-    biased_read_lock(&base_md->gc_lock, ralloc::process_id);
+    biased_read_lock_64(&base_md->gc_lock, ralloc::process_id);
     const Descriptor* desc = base_md->desc_lookup(ptr);
     size_t size = (size_t)desc->block_size;
-    biased_read_unlock(&base_md->gc_lock, ralloc::process_id);
+    biased_read_unlock_64(&base_md->gc_lock, ralloc::process_id);
     return size;
 }
 

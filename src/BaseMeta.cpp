@@ -18,7 +18,7 @@
 #include <iostream>
 #include <atomic>
 
-#include "biased_lock.h"
+#include "biased_lock64.h"
 #include "BaseMeta.hpp"
 
 /*
@@ -157,7 +157,7 @@ BaseMeta::BaseMeta() noexcept
     // thread_num(thd_num) {
 {
     /* allocate these persistent data into specific memory address */
-    biased_init(&gc_lock);
+    biased_init_64(&gc_lock);
     FLUSH(&gc_lock);
 
     /* heaps init */

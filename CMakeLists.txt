@@ -36,42 +36,71 @@ set(ralloc_src
   ${CMAKE_CURRENT_SOURCE_DIR}/src/extern_val.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/ralloc.cpp
 )
-
-add_library(ralloc_cxl ${ralloc_src})
 set(ralloc_inc
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}/../../driver_futex/uapi/
     ${CMAKE_CURRENT_SOURCE_DIR}/../../src/driver_api/
     ${CMAKE_CURRENT_SOURCE_DIR}/../../src/common/
 )
-target_include_directories(ralloc_cxl PUBLIC
+
+add_library(ralloc_cxl_byte ${ralloc_src})
+target_include_directories(ralloc_cxl_byte PUBLIC
   "$<BUILD_INTERFACE:${ralloc_inc}>"
 )
-target_compile_options(ralloc_cxl PUBLIC "$<$<CONFIG:Debug>:${RALLOC_COMPILE_OPTIONS};-DCXLMEM;-DDESTROY;-DDEBUG;-DCACHELINE_GRANULAR;-DUSE_JJ_AB_LOCK;-DMAX_PROCESS_SHIFT=6>")
-target_compile_options(ralloc_cxl PUBLIC "$<$<CONFIG:Release>:${RALLOC_COMPILE_OPTIONS};-DCXLMEM;-DDESTROY;-DCACHELINE_GRANULAR;-DUSE_JJ_AB_LOCK;-DMAX_PROCESS_SHIFT=6>")
-target_link_libraries(ralloc_cxl cxl_driver_api atomic)
+target_compile_options(ralloc_cxl_byte PUBLIC "$<$<CONFIG:Debug>:${RALLOC_COMPILE_OPTIONS};-DCXLMEM;-DDESTROY;-DDEBUG;-DBYTE_GRANULAR;-DUSE_JJ_AB_LOCK>")
+target_compile_options(ralloc_cxl_byte PUBLIC "$<$<CONFIG:Release>:${RALLOC_COMPILE_OPTIONS};-DCXLMEM;-DDESTROY;-DBYTE_GRANULAR;-DUSE_JJ_AB_LOCK>")
+target_link_libraries(ralloc_cxl_byte cxl_driver_api_byte atomic)
 
-add_executable(threadtest_cxlmem
+add_library(ralloc_cxl_cacheline ${ralloc_src})
+target_include_directories(ralloc_cxl_cacheline PUBLIC
+  "$<BUILD_INTERFACE:${ralloc_inc}>"
+)
+target_compile_options(ralloc_cxl_cacheline PUBLIC "$<$<CONFIG:Debug>:${RALLOC_COMPILE_OPTIONS};-DCXLMEM;-DDESTROY;-DDEBUG;-DCACHELINE_GRANULAR;-DUSE_JJ_AB_LOCK>")
+target_compile_options(ralloc_cxl_cacheline PUBLIC "$<$<CONFIG:Release>:${RALLOC_COMPILE_OPTIONS};-DCXLMEM;-DDESTROY;-DCACHELINE_GRANULAR;-DUSE_JJ_AB_LOCK>")
+target_link_libraries(ralloc_cxl_cacheline cxl_driver_api_cacheline atomic)
+
+add_executable(threadtest_cxlmem_byte
   ${CMAKE_CURRENT_SOURCE_DIR}/test/benchmark/threadtest.cpp
 )
-target_link_libraries(threadtest_cxlmem ralloc_cxl)
+target_link_libraries(threadtest_cxlmem_byte ralloc_cxl_byte)
 
-add_executable(sh6bench_cxlmem
+add_executable(threadtest_cxlmem_cacheline
+  ${CMAKE_CURRENT_SOURCE_DIR}/test/benchmark/threadtest.cpp
+)
+target_link_libraries(threadtest_cxlmem_cacheline ralloc_cxl_cacheline)
+
+add_executable(sh6bench_cxlmem_byte
   ${CMAKE_CURRENT_SOURCE_DIR}/test/benchmark/sh6bench.cpp
 )
-target_link_libraries(sh6bench_cxlmem ralloc_cxl)
+target_link_libraries(sh6bench_cxlmem_byte ralloc_cxl_byte)
+add_executable(sh6bench_cxlmem_cacheline
+  ${CMAKE_CURRENT_SOURCE_DIR}/test/benchmark/sh6bench.cpp
+)
+target_link_libraries(sh6bench_cxlmem_cacheline ralloc_cxl_cacheline)
 
-add_executable(larson_cxlmem
+add_executable(larson_cxlmem_byte
   ${CMAKE_CURRENT_SOURCE_DIR}/test/benchmark/larson.cpp
 )
-target_link_libraries(larson_cxlmem ralloc_cxl)
+target_link_libraries(larson_cxlmem_byte ralloc_cxl_byte)
+add_executable(larson_cxlmem_cacheline
+  ${CMAKE_CURRENT_SOURCE_DIR}/test/benchmark/larson.cpp
+)
+target_link_libraries(larson_cxlmem_cacheline ralloc_cxl_cacheline)
 
-add_executable(prod-con_cxlmem
+add_executable(prod-con_cxlmem_byte
   ${CMAKE_CURRENT_SOURCE_DIR}/test/benchmark/prod-con.cpp
 )
-target_link_libraries(prod-con_cxlmem ralloc_cxl)
+target_link_libraries(prod-con_cxlmem_byte ralloc_cxl_byte)
+add_executable(prod-con_cxlmem_cacheline
+  ${CMAKE_CURRENT_SOURCE_DIR}/test/benchmark/prod-con.cpp
+)
+target_link_libraries(prod-con_cxlmem_cacheline ralloc_cxl_cacheline)
 
-add_executable(simple_alloc_cxlmem
+add_executable(simple_alloc_cxlmem_byte
   ${CMAKE_CURRENT_SOURCE_DIR}/test/benchmark/simple_alloc.cc
 )
-target_link_libraries(simple_alloc_cxlmem ralloc_cxl)
+target_link_libraries(simple_alloc_cxlmem_byte ralloc_cxl_byte)
+add_executable(simple_alloc_cxlmem_cacheline
+  ${CMAKE_CURRENT_SOURCE_DIR}/test/benchmark/simple_alloc.cc
+)
+target_link_libraries(simple_alloc_cxlmem_cacheline ralloc_cxl_cacheline)

@@ -24,7 +24,7 @@
 #include <pthread.h>
 
 #include "pm_config.hpp"
-#include "biased_lock.h"
+#include "biased_lock64.h"
 
 #include "RegionManager.hpp"
 #include "SizeClass.hpp"
@@ -359,7 +359,7 @@ public:
     RP_TRANSIENT AtomicCrossPtrCnt<Descriptor, DESC_IDX> avail_sb;
 
     // Enforce mutual exclusion between GC process and applications
-    RP_PERSIST biased_lock gc_lock;
+    RP_PERSIST biased_lock64 gc_lock;
 
     RP_PERSIST ProcHeap heaps[MAX_SZ_IDX];
     RP_PERSIST CrossPtr<char, SB_IDX> roots[MAX_ROOTS];
@@ -407,12 +407,12 @@ public:
     void restart(){
         // Restart, setting values and flags to normal
         // Should be called during restart
-        if (biased_write_trylock(&gc_lock, ralloc::process_id, ralloc::process_count)) {
+        if (biased_write_trylock_64(&gc_lock, ralloc::process_id, ralloc::process_count)) {
             GarbageCollection gc;
             gc();
-            biased_write_unlock(&gc_lock, ralloc::process_id);
+            biased_write_unlock_64(&gc_lock, ralloc::process_id);
         } else {
-            biased_recover(&gc_lock, ralloc::process_id);
+            biased_recover_64(&gc_lock, ralloc::process_id);
         }
         FLUSHFENCE;
     }
