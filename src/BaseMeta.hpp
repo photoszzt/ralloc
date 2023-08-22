@@ -405,13 +405,17 @@ public:
         return static_cast<T*>(roots[i]);
     }
     void restart(){
+        DBG_PRINT("Acquiring recovery lock... (id = %d, count = %d)", ralloc::process_id, ralloc::process_count);
+
         // Restart, setting values and flags to normal
         // Should be called during restart
         if (biased_write_trylock_64(&gc_lock, ralloc::process_id, ralloc::process_count)) {
+            DBG_PRINT("Acquired recovery lock (id = %d, count = %d)", ralloc::process_id, ralloc::process_count);
             GarbageCollection gc;
             gc();
             biased_write_unlock_64(&gc_lock, ralloc::process_id);
         } else {
+            DBG_PRINT("Failed to acquire recovery lock (id = %d, count = %d)", ralloc::process_id, ralloc::process_count);
             biased_recover_64(&gc_lock, ralloc::process_id);
         }
         FLUSHFENCE;
