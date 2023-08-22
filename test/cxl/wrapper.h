@@ -2,7 +2,7 @@
 #include <stdint.h>
 
 void* RP_get_root_c(uint64_t i);
-int RP_init(const char* _id, uint64_t size);
+int RP_init(const char* _id, uint64_t size, uint8_t process_id, uint8_t process_count);
 int RP_recover();
 void RP_close();
 void* RP_malloc(size_t sz);

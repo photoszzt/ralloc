@@ -17,8 +17,11 @@ use rand_xoshiro::Xoshiro256StarStar;
 
 #[derive(Parser)]
 struct Options {
-    #[arg(short, long)]
-    id: usize,
+    #[arg(short = 'i', long)]
+    process_id: u8,
+
+    #[arg(short = 'c', long)]
+    process_count: u8,
 
     #[arg(short, long)]
     address: SocketAddr,
@@ -28,9 +31,9 @@ fn main() -> anyhow::Result<()> {
     env_logger::init();
 
     let options = Options::parse();
-    let id = options.id;
+    let id = options.process_id;
 
-    let mut rng = Xoshiro256StarStar::seed_from_u64(options.id as u64);
+    let mut rng = Xoshiro256StarStar::seed_from_u64(options.process_id as u64);
     let mut addresses = HashMap::new();
     let mut allocations = 0;
     let mut connection = TcpStream::connect(options.address)
@@ -66,7 +69,14 @@ fn main() -> anyhow::Result<()> {
                     let heap_id_ = ffi::CString::new(heap_id.clone())
                         .expect("Coordinator sent null byte in path");
 
-                    let restart = match unsafe { sys::RP_init(heap_id_.as_ptr(), size) } {
+                    let restart = match unsafe {
+                        sys::RP_init(
+                            heap_id_.as_ptr(),
+                            size,
+                            options.process_id,
+                            options.process_count,
+                        )
+                    } {
                         0 => false,
                         1 => true,
                         _ => unreachable!(),

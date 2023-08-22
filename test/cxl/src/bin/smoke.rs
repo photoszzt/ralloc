@@ -18,7 +18,7 @@ fn main() -> anyhow::Result<()> {
     let id = std::ffi::CString::new("sm").unwrap();
     unsafe {
         // ralloc requires slightly more memory (64KiB) for its own metadata?
-        sys::RP_init(id.as_ptr(), 2u64.pow(30) + 64 * 2u64.pow(10));
+        sys::RP_init(id.as_ptr(), 2u64.pow(30) + 64 * 2u64.pow(10), 0, 1);
         eprintln!("Initialized ralloc");
 
         const SIZE: usize = 8000;
