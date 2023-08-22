@@ -1,8 +1,6 @@
-use std::net::TcpStream;
+use std::net::TcpListener;
 use std::path::Path;
 use std::process;
-use std::thread;
-use std::time::Duration;
 
 use anyhow::anyhow;
 use anyhow::Context as _;
@@ -16,23 +14,25 @@ pub struct Worker {
 }
 
 impl Worker {
-    pub fn local(id: u8, path: &Path, port: u16, seed: u64) -> anyhow::Result<Self> {
-        let address = format!("127.0.0.1:{port}");
+    pub fn local(id: u8, path: &Path, listener: &mut TcpListener) -> anyhow::Result<Self> {
+        let address = listener
+            .local_addr()
+            .context("[C]: failed to get local address")?;
+
         let handle = process::Command::new(path)
-            .args(["--address", &address, "--seed", &seed.to_string()])
+            .args(["--id", &id.to_string(), "--address", &address.to_string()])
             .spawn()?;
 
-        // TODO: use more robust mechanism?
-        thread::sleep(Duration::from_secs(1));
+        let (stream, address) = listener
+            .accept()
+            .context("[C]: failed to accept connection")?;
 
-        let connection = TcpStream::connect(&address)
-            .with_context(|| anyhow!("Failed to connect to {}", address))
-            .map(rpc::Connection::new)?;
+        log::info!("[C]: connected to {}", address);
 
         Ok(Worker {
             id,
             handle,
-            connection,
+            connection: rpc::Connection::new(stream),
         })
     }
 

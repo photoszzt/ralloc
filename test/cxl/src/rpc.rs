@@ -1,5 +1,7 @@
 use std::net::TcpStream;
 
+use anyhow::anyhow;
+use anyhow::Context as _;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -20,11 +22,12 @@ impl Connection {
     }
 
     pub fn send(&mut self, commands: &[Command]) -> anyhow::Result<()> {
-        bincode::serialize_into(&mut self.0, commands)?;
+        bincode::serialize_into(&mut self.0, commands)
+            .with_context(|| anyhow!("Failed to serialize commands: {:?}", commands))?;
         Ok(())
     }
 
     pub fn receive(&mut self) -> anyhow::Result<Vec<Command>> {
-        bincode::deserialize_from(&mut self.0).map_err(anyhow::Error::from)
+        bincode::deserialize_from(&mut self.0).context("Failed to deserialize commands")
     }
 }

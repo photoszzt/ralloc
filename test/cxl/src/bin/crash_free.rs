@@ -45,7 +45,7 @@ struct Command {
 fn main() -> anyhow::Result<()> {
     let command = Command::parse();
 
-    let mut coordinator = Coordinator::new(command.seed, &command.path, command.workers as u8)?;
+    let mut coordinator = Coordinator::new(&command.path, command.workers as u8)?;
 
     let uniform = Uniform::new_inclusive(1, 8193);
     let initialize = [rpc::Command::Init {
@@ -87,6 +87,5 @@ fn main() -> anyhow::Result<()> {
             Ok(())
         })?;
 
-    coordinator.wait()?;
     Ok(())
 }
