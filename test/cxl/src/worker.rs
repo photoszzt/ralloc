@@ -14,13 +14,25 @@ pub struct Worker {
 }
 
 impl Worker {
-    pub fn local(id: u8, path: &Path, listener: &mut TcpListener) -> anyhow::Result<Self> {
+    pub fn local(
+        id: u8,
+        count: u8,
+        path: &Path,
+        listener: &mut TcpListener,
+    ) -> anyhow::Result<Self> {
         let address = listener
             .local_addr()
             .context("[C]: failed to get local address")?;
 
         let handle = process::Command::new(path)
-            .args(["--id", &id.to_string(), "--address", &address.to_string()])
+            .args([
+                "--process-id",
+                &id.to_string(),
+                "--process-count",
+                &count.to_string(),
+                "--address",
+                &address.to_string(),
+            ])
             .spawn()?;
 
         let (stream, address) = listener

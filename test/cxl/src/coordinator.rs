@@ -19,7 +19,7 @@ impl Coordinator {
             .context("[C]: failed to bind to localhost:0")?;
 
         let workers = (0..workers)
-            .map(|id| Worker::local(id, worker, &mut listener))
+            .map(|id| Worker::local(id, workers, worker, &mut listener))
             .collect::<Result<Vec<_>, _>>()?;
 
         Ok(Self {
