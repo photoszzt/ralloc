@@ -1,7 +1,10 @@
 use std::fs::File;
+use std::mem;
 use std::ptr;
+use std::sync::atomic::Ordering;
 
 use anyhow::Context;
+use common_rs::AtomicOffsetPointer;
 use cxl::sys;
 
 fn main() -> anyhow::Result<()> {
@@ -21,23 +24,41 @@ fn main() -> anyhow::Result<()> {
         sys::RP_init(id.as_ptr(), 2u64.pow(30) + 64 * 2u64.pow(10), 0, 1);
         eprintln!("Initialized ralloc");
 
-        const SIZE: usize = 8000;
+        const SIZE: usize = 100;
 
-        let pointer = sys::RP_malloc(SIZE).cast::<u8>();
-        assert_ne!(pointer, ptr::null_mut());
-        eprintln!("Allocated {} bytes at {:x?}", SIZE, pointer);
+        let head = sys::RP_malloc(mem::size_of::<Node>());
+        sys::RP_set_root(head, 0);
 
-        for offset in 0..SIZE {
-            *pointer.add(offset) = offset as u8;
+        let mut prev = head.cast::<Node>();
+        ptr::addr_of_mut!((*prev).next).write(AtomicOffsetPointer::null());
+        ptr::addr_of_mut!((*prev).data).write(0);
+
+        for index in 1..SIZE {
+            let next = sys::RP_malloc(mem::size_of::<Node>()).cast::<Node>();
+            ptr::addr_of_mut!((*next).next).write(AtomicOffsetPointer::null());
+            ptr::addr_of_mut!((*next).data).write(index as u64);
+
+            (*prev).next.store(next, Ordering::Release);
+            prev = next;
         }
-        for offset in 0..SIZE {
-            assert_eq!(*pointer.add(offset), offset as u8);
-        }
-        eprintln!("Verified {} bytes", SIZE);
 
-        sys::RP_free(pointer.cast());
-        eprintln!("Freed {:x?}", pointer);
+        sys::RP_recover();
+
+        let mut prev = head.cast_const().cast::<Node>();
+        for index in 0..SIZE {
+            assert_eq!((*prev).data, index as u64);
+            let next = (*prev).next.load(Ordering::Acquire);
+            sys::RP_free(prev as _);
+            prev = next;
+        }
+
+        sys::RP_close();
     }
 
     Ok(())
+}
+
+struct Node {
+    next: AtomicOffsetPointer<Node>,
+    data: u64,
 }
