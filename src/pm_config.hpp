@@ -123,8 +123,8 @@ const uint64_t MAX_DESC_REGION_SIZE = DESCSIZE*MAX_DESC_AMOUNT;
  * Note: here we assume addresses on x86-64 don't use most significant 16 bits
  * and thus we are safe to shift an offset left by 16 bits.
  */
-const uint64_t PPTR_PATTERN_POS = 0x52b0;
-const uint64_t PPTR_PATTERN_NEG = 0x52b1;
-const int PPTR_PATTERN_SHIFT = 16;
+const uint64_t PPTR_PATTERN_POS = 0b10;
+const uint64_t PPTR_PATTERN_NEG = 0b11;
+const int PPTR_PATTERN_SHIFT = 2;
 const int PPTR_PATTERN_MASK = (1<<PPTR_PATTERN_SHIFT)-2;
 #endif
