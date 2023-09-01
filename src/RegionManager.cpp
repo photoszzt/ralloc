@@ -339,6 +339,18 @@ bool RegionManager::__within_range(void* ptr){
     return ((intptr_t)base_addr<(intptr_t)ptr) && ((intptr_t)ptr<curr_addr);
 }
 
+#ifdef CXLMEM
+    // return the absolute offset from the start of the CXL memory
+    bool RegionManager::get_offset(void* ptr, uint64_t* offset) {
+        if (!__within_range(ptr)) {
+            offset = 0;
+            return false;
+        }
+        *offset = ((uintptr_t) ptr - (uintptr_t)base_addr) + persist_region_offset;
+        return true;
+    }
+#endif
+
 // __destroy only called in DESTROY defined
 void RegionManager::__destroy(){
 #ifdef CXLMEM

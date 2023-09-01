@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2019 University of Rochester. All rights reserved.
  * Licenced under the MIT licence. See LICENSE file in the project root for
- * details. 
+ * details.
  */
 
 #ifndef _RALLOC_HPP_
@@ -44,6 +44,8 @@ void* RP_realloc(void* ptr, size_t new_size);
 int RP_in_prange(void* ptr);
 /* return 1 if the query is invalid, otherwise 0 and write start and end addr to the parameter. */
 int RP_region_range(int idx, void** start_addr, void** end_addr);
+/* get the offset to the start of the underlying memory(PMEM or CXL mem) */
+bool RP_get_offset(void* ptr);
 }
 
 #define RP_pthread_create(thd, attr, f, arg) pm_thread_create(thd, attr, f, arg)
@@ -53,11 +55,11 @@ int RP_region_range(int idx, void** start_addr, void** end_addr);
  *
  * Function:
  * 		_init(string id, uint64_t thd_num):
- * 			Construct the singleton with id to decide where the data 
+ * 			Construct the singleton with id to decide where the data
  * 			maps to. If the file exists, it tries to restart; otherwise,
  * 			it starts from scratch.
  * 		_close():
- * 			Shutdown the allocator by cleaning up free list 
+ * 			Shutdown the allocator by cleaning up free list
  * 			and RegionManager pointer, but BaseMeta data will
  * 			preserve for remapping during restart.
  * 		T* _p_malloc<T>(size_t sz):
@@ -71,13 +73,13 @@ int RP_region_range(int idx, void** start_addr, void** end_addr);
  * 		void* _get_root(uint64_t i):
  * 			Return i-th root.
  *
- * Note: Main data is stored in *base_md and is mapped to 
+ * Note: Main data is stored in *base_md and is mapped to
  * filepath, which is $(HEAPFILE_PREFIX)$(id).
 
 
- * It's from paper: 
+ * It's from paper:
  * 		LRMalloc: A Modern and Competitive Lock-Free Dynamic Memory Allocator
- * by 
+ * by
  * 		Ricardo Leite and Ricardo Rocha
  *
  * p_malloc() and p_free() have large portion of code from the open source

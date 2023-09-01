@@ -176,6 +176,11 @@ public:
 
     //destroy the region and delete the file
     void __destroy();
+
+#ifdef CXLMEM
+    // return the absolute offset from the start of the CXL memory
+    bool get_offset(void* ptr, uint64_t* offset);
+#endif
 };
 
 /*
@@ -320,6 +325,12 @@ public:
         }
         FLUSHFENCE;
     }
+
+#ifdef CXLMEM
+    inline bool get_offset(int index, void* ptr, uint64_t* offset) {
+        return regions[index]->get_offset(ptr, offset);
+    }
+#endif
 };
 
 #endif /* _REGION_MANAGER_HPP_ */

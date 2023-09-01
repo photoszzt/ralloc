@@ -191,3 +191,7 @@ int RP_region_range(int idx, void** start_addr, void** end_addr){
     *end_addr = (void*) ((uint64_t)_rgs->regions_address[idx] + _rgs->regions[idx]->FILESIZE);
     return 0;
 }
+
+bool RP_get_offset(void* ptr, uint64_t *offset) {
+    return _rgs->get_offset(SB_IDX, ptr, offset);
+}
