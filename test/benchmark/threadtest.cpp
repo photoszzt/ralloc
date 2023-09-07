@@ -196,6 +196,7 @@ int main (int argc, char * argv[])
   t.stop ();
 
   printf( "Time elapsed = %f\n", (double) t);
+  free(threadArg);
 
   delete [] threads;
   pm_close();

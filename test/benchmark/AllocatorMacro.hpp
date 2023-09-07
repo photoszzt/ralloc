@@ -55,8 +55,15 @@ volatile static int init_count = 0;
 
 #define REGION_SIZE (6*1024*1024*1024ULL + 24)
 
+#ifdef CXLALLOC
 
-#ifdef RALLOC
+  #include "cxlalloc.h"
+  inline void* pm_malloc(size_t s) { return cxlalloc_malloc(s); }
+  inline void pm_free(void* p) { cxlalloc_free(p); }
+  inline int pm_init() { cxlalloc_init("test", REGION_SIZE, 0, 1); return 0; }
+  inline void pm_close() { cxlalloc_close(); }
+
+#elif defined(RALLOC)
 
   #include "ralloc.hpp"
   inline void* pm_malloc(size_t s) { return RP_malloc(s); }
