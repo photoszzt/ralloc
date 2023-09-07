@@ -143,7 +143,7 @@ int main(int argc, char *argv[])
 
 
 	unsigned i;
-	int *threadArg = malloc(uThreadCount*sizeof(int));
+	int *threadArg = (int*) malloc(uThreadCount*sizeof(int));
 	ThreadID *tids;
 
 	uThreadCount = (int)promptAndRead("threads", GetNumProcessors(), 'u');
@@ -155,7 +155,7 @@ int main(int argc, char *argv[])
 	if (uThreadCount < 1)
 		uThreadCount = 1;
 	ulCallCount /= uThreadCount;
-	if ((tids = malloc(sizeof(ThreadID) * uThreadCount)) != NULL){
+	if ((tids = ((ThreadID*) malloc(sizeof(ThreadID) * uThreadCount))) != NULL){
 		startCPU = clock();
 		startTime = time(NULL);
 		start_ = rdtsc();
@@ -224,7 +224,7 @@ void doBench(void *arg)
 	pthread_barrier_wait(&barrier);
 
 #endif
-	char **memory = pm_malloc(ulCallCount * sizeof(void *));
+	char **memory = (char**) pm_malloc(ulCallCount * sizeof(void *));
 	int	size_base, size, iterations;
 	int	repeat = ulCallCount;
 	char **mp = memory;
