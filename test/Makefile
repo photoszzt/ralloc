@@ -6,7 +6,7 @@
 
 SRC = ../src
 OBJ = ../obj
-CXX = clang++-15
+CXX = clang++
 
 WARNING_FLAGS:=-ftrapv -Wreturn-type -W -Wall \
 -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unused-parameter
@@ -15,7 +15,7 @@ override FLAGS += -O3 -g -fpermissive $(WARNING_FLAGS) -fno-omit-frame-pointer -
 RALLOC_FLAGS = $(FLAGS) -DRALLOC -L.
 MAKALU_FLAGS = $(FLAGS) -I../ext/makalu_alloc/include -DMAKALU -L../ext/makalu_alloc/lib -lmakalu
 PMDK_FLAGS = $(FLAGS) -DPMDK -lpmemobj
-CXLALLOC_FLAGS = $(FLAGS) -DCXLALLOC -I../../cxl_shmem/src/cxlalloc/include -L../../cxl_shmem/src/cxlalloc/target/release -lcxlalloc -I../../cxl_shmem/src/common -I../../cxl_shmem/src/driver_api -I../../cxl_shmem/driver_futex/src/uapi -L../../cxl_shmem/build_clang_release/bin -lcxl_driver_api_byte -latomic
+CXLALLOC_FLAGS = $(FLAGS) -DCXLALLOC -I../../cxl_shmem/src/cxlalloc/include -L../../cxl_shmem/src/cxlalloc/target/release -lcxlalloc
 
 R_CXXFLAGS = $(RALLOC_FLAGS) -L../../jemalloc/lib -ljemalloc -L. -lralloc
 MAK_CXXFLAGS = $(MAKALU_FLAGS) -L../../jemalloc/lib -ljemalloc
@@ -88,13 +88,13 @@ $(OBJ)/%.o: $(SRC)/%.cpp
 benchmark_pm: threadtest_test sh6bench_test larson_test prod-con_test #cache-scratch_test cache-thrash_test
 
 threadtest_test: ./benchmark/threadtest.cpp libralloc.a
-	$(CXX) -I $(SRC) -I ./benchmark -o $@ $^ $(CXXFLAGS) $(LIBS)
+	$(CXX) -I $(SRC) -I ./benchmark -o $(ALLOC)_$@ $^ $(CXXFLAGS) $(LIBS)
 
 sh6bench_test: ./benchmark/sh6bench.cpp libralloc.a
-	$(CXX) -I $(SRC) -I ./benchmark -o $@ $^ $(CXXFLAGS) $(LIBS)
+	$(CXX) -I $(SRC) -I ./benchmark -o $(ALLOC)_$@ $^ $(CXXFLAGS) $(LIBS)
 
 larson_test: ./benchmark/larson.cpp libralloc.a
-	$(CXX) -I $(SRC) -I ./benchmark -o $@ $^ $(CXXFLAGS) $(LIBS)
+	$(CXX) -I $(SRC) -I ./benchmark -o $(ALLOC)_$@ $^ $(CXXFLAGS) $(LIBS)
 
 # # Active false sharing
 # cache-thrash_test: ./benchmark/cache-thrash.cpp libralloc.a
@@ -105,7 +105,7 @@ larson_test: ./benchmark/larson.cpp libralloc.a
 # 	$(CXX) -I $(SRC) -I ./benchmark -o $@ $^ $(CXXFLAGS) $(LIBS) -L. -lralloc
 
 prod-con_test: ./benchmark/prod-con.cpp libralloc.a
-	$(CXX) -I $(SRC) -I ./benchmark -o $@ $^ $(CXXFLAGS) $(LIBS)
+	$(CXX) -I $(SRC) -I ./benchmark -o $(ALLOC)_$@ $^ $(CXXFLAGS) $(LIBS)
 
 libralloc.a: $(OBJECTS)
 	ar -rcs $@ $^
