@@ -346,8 +346,17 @@ bool RegionManager::__within_range(void* ptr){
             offset = 0;
             return false;
         }
-        *offset = ((uintptr_t) ptr - (uintptr_t)base_addr) + persist_region_offset;
+        *offset = ((uintptr_t) ptr - (uintptr_t)base_addr);
         return true;
+    }
+
+    void* RegionManager::get_ptr_from_offset(uint64_t offset) {
+        void* ptr = (void *)((uintptr_t)base_addr + offset);
+        if (!__within_range(ptr)) {
+            return NULL;
+        } else {
+            return ptr;
+        }
     }
 #endif
 

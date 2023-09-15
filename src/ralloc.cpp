@@ -192,6 +192,12 @@ int RP_region_range(int idx, void** start_addr, void** end_addr){
     return 0;
 }
 
+#ifdef CXLMEM
 bool RP_get_offset(void* ptr, uint64_t *offset) {
     return _rgs->get_offset(SB_IDX, ptr, offset);
 }
+
+void* RP_get_ptr_from_offset(uint64_t offset) {
+    return _rgs->get_ptr_from_offset(SB_IDX, offset);
+}
+#endif

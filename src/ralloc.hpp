@@ -44,8 +44,12 @@ void* RP_realloc(void* ptr, size_t new_size);
 int RP_in_prange(void* ptr);
 /* return 1 if the query is invalid, otherwise 0 and write start and end addr to the parameter. */
 int RP_region_range(int idx, void** start_addr, void** end_addr);
-/* get the offset to the start of the underlying memory(PMEM or CXL mem) */
+#ifdef CXLMEM
+/* get the offset to the start of ralloc heap */
 bool RP_get_offset(void* ptr);
+/* get the ptr using the offset to the start of the ralloc heap */
+void* RP_get_ptr_from_offset(uint64_t offset);
+#endif
 }
 
 #define RP_pthread_create(thd, attr, f, arg) pm_thread_create(thd, attr, f, arg)

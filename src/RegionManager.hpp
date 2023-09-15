@@ -178,8 +178,10 @@ public:
     void __destroy();
 
 #ifdef CXLMEM
-    // return the absolute offset from the start of the CXL memory
+    // return the offset from the start of the heap
     bool get_offset(void* ptr, uint64_t* offset);
+    // return the ptr that corresponds to the offset in the heap
+    void* get_ptr_from_offset(uint64_t offset);
 #endif
 };
 
@@ -329,6 +331,10 @@ public:
 #ifdef CXLMEM
     inline bool get_offset(int index, void* ptr, uint64_t* offset) {
         return regions[index]->get_offset(ptr, offset);
+    }
+
+    inline void* ptr get_ptr_from_offset(int index, uint64_t offset) {
+        return regions[index]->get_ptr_from_offset(offset);
     }
 #endif
 };
