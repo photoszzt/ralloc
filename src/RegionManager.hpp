@@ -333,7 +333,7 @@ public:
         return regions[index]->get_offset(ptr, offset);
     }
 
-    inline void* ptr get_ptr_from_offset(int index, uint64_t offset) {
+    inline void* get_ptr_from_offset(int index, uint64_t offset) {
         return regions[index]->get_ptr_from_offset(offset);
     }
 #endif
