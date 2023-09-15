@@ -46,7 +46,7 @@ int RP_in_prange(void* ptr);
 int RP_region_range(int idx, void** start_addr, void** end_addr);
 #ifdef CXLMEM
 /* get the offset to the start of ralloc heap */
-bool RP_get_offset(void* ptr);
+bool RP_get_offset(const void* ptr, uint64_t *offset);
 /* get the ptr using the offset to the start of the ralloc heap */
 void* RP_get_ptr_from_offset(uint64_t offset);
 #endif
