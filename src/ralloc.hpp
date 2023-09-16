@@ -9,7 +9,9 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <stdbool.h>
 
+#ifdef __cplusplus
 #include "BaseMeta.hpp"
 namespace ralloc{
     extern uint8_t process_id;
@@ -23,7 +25,12 @@ T* RP_get_root(uint64_t i){
     assert(ralloc::initialized);
     return ralloc::base_md->get_root<T>(i);
 }
-extern "C"{
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // This is a version for pure c only
 void* RP_get_root_c(uint64_t i);
 
@@ -49,8 +56,11 @@ int RP_region_range(int idx, void** start_addr, void** end_addr);
 bool RP_get_offset(const void* ptr, uint64_t *offset);
 /* get the ptr using the offset to the start of the ralloc heap */
 void* RP_get_ptr_from_offset(uint64_t offset);
-#endif
+#endif // CXLMEM
+
+#ifdef __cplusplus
 }
+#endif
 
 #define RP_pthread_create(thd, attr, f, arg) pm_thread_create(thd, attr, f, arg)
 /*
