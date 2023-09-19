@@ -128,7 +128,7 @@ public:
                 return false;
             }
             close(fd);
-            return (find_alloc.ret == 1);
+            return (find_alloc.existing == 1);
         } else {
             std::ifstream f(name.c_str());
             return f.good();
@@ -218,14 +218,14 @@ public:
 #ifdef CXLMEM
         if (p) {
             struct vcxl_find_alloc find_alloc;
-            int ret;
-            int fd = open("/dev/cxl_ivpci0", O_RDWR);
+            int ret, fd;
+            fd = open("/dev/cxl_ivpci0", O_RDWR);
             find_alloc = find_cxl_alloc_nomap(fd, name.c_str(), &ret);
             if (ret) {
                 return false;
             }
             close(fd);
-            return (find_alloc.ret == 1);
+            return (find_alloc.existing == 1);
         } else {
             std::ifstream f(name.c_str());
             return f.good();

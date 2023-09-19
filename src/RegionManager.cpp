@@ -110,8 +110,8 @@ void RegionManager::__remap_persistent_region(){
     struct find_ret find_ret;
     fd = open("/dev/cxl_ivpci0", O_RDWR);
     FD = fd;
-    find_ret = find_cxl_alloc(fd, HEAPFILE.c_str());
-    assert(find_ret.found);
+    find_ret = find_cxl_alloc(fd, HEAPFILE.c_str(), FILESIZE);
+    assert(find_ret.existing);
     assert(FILESIZE == find_ret.length);
     assert(find_ret.ret == 0);
 
