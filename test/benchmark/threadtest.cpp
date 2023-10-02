@@ -115,7 +115,7 @@ extern "C" void * worker (void * arg)
     // printf ("%d\n", j);
     for (i = 0; i < (nobjects / nthreads); i ++) {
       a[i] = new Foo[sz];
-      for (volatile int d = 0; d < work; d++) {
+      for (volatile int d = 0; d < work; d=d+1) {
 	volatile int f = 1;
 	f = f + f;
 	f = f * f;
@@ -127,7 +127,7 @@ extern "C" void * worker (void * arg)
 
     for (i = 0; i < (nobjects / nthreads); i ++) {
       delete[] a[i];
-      for (volatile int d = 0; d < work; d++) {
+      for (volatile int d = 0; d < work; d=d+1) {
 	volatile int f = 1;
 	f = f + f;
 	f = f * f;
