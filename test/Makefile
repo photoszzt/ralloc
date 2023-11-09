@@ -6,7 +6,7 @@
 
 SRC = ../src
 OBJ = ../obj
-CXX = clang++
+CXX = clang++-15
 
 WARNING_FLAGS:=-ftrapv -Wreturn-type -W -Wall \
 -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unused-parameter
@@ -15,7 +15,7 @@ override FLAGS += -O3 -g -fpermissive $(WARNING_FLAGS) -fno-omit-frame-pointer -
 RALLOC_FLAGS = $(FLAGS) -DRALLOC -L.
 MAKALU_FLAGS = $(FLAGS) -I../ext/makalu_alloc/include -DMAKALU -L../ext/makalu_alloc/lib -lmakalu
 PMDK_FLAGS = $(FLAGS) -DPMDK -lpmemobj
-CXLALLOC_FLAGS = $(FLAGS) -DCXLALLOC -I../../cxl_shmem/src/cxlalloc/include -L../../cxl_shmem/src/cxlalloc/target/release -lcxlalloc
+CXLALLOC_FLAGS = $(FLAGS) -DCXLALLOC -I../../../src/cxlalloc/include -L../../../build_clang_release -lcxlalloc
 
 R_CXXFLAGS = $(RALLOC_FLAGS) -L../../jemalloc/lib -ljemalloc -L. -lralloc
 MAK_CXXFLAGS = $(MAKALU_FLAGS) -L../../jemalloc/lib -ljemalloc
