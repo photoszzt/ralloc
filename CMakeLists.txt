@@ -14,5 +14,6 @@ set(ralloc_inc ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
 add_library(ralloc ${ralloc_src})
 target_include_directories(ralloc PRIVATE "$<BUILD_INTERFACE:${ralloc_inc}>")
+target_compile_definitions(ralloc PRIVATE -DSHM_SIMULATING)
 target_compile_options(ralloc PRIVATE "${PROJ_COMPILE_OPTIONS}")
 target_link_options(ralloc PRIVATE "${PROJ_LINK_OPTIONS}")
