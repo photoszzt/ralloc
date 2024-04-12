@@ -71,6 +71,16 @@ void RegionManager::__map_persistent_region(){
     }
     assert(addr != MAP_FAILED);
 
+    if (const char* numa = std::getenv("CXL_NUMA_NODE")) {
+        std::size_t pos{};
+	const int node{std::stoi(numa, &pos)};
+	const unsigned long mask = 1 << node;
+	if (mbind(addr, FILESIZE, MPOL_BIND, &mask, sizeof(mask) * 8, 0) < 0) {
+            perror("mbind");
+	    exit(1);
+	}
+    }
+
     base_addr = (char*) addr;
     // | curr_addr  |
     // | heap_start |

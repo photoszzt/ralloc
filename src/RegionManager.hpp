@@ -38,6 +38,7 @@
 #include <fstream>
 #include <atomic>
 #include <vector>
+#include <numaif.h>
 
 #include "pm_config.hpp"
 #include "pfence_util.h"
