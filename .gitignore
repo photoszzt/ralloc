@@ -1,3 +1,6 @@
+.cache/
+build/
+
 test/larson_test
 test/libralloc.a
 test/prod-con_test
