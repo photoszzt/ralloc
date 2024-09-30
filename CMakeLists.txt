@@ -22,4 +22,4 @@ add_library(ralloc_dynamic SHARED
 )
 target_compile_definitions(ralloc_dynamic PRIVATE -DSHM_SIMULATING)
 target_compile_options(ralloc_dynamic PRIVATE -std=c++23 -ftls-model=initial-exec)
-target_link_libraries(ralloc_dynamic ralloc)
+target_link_libraries(ralloc_dynamic PRIVATE ralloc numa)

@@ -1,4 +1,6 @@
 #include "BaseMeta.hpp"
+#include "SizeClass.hpp"
+#include "ralloc.hpp"
 #include <atomic>
 #include <bit>
 #include <cstddef>
@@ -9,39 +11,94 @@ void init_thread();
 
 extern "C" void *malloc(size_t size) {
   init_thread();
-  return nullptr;
+  return RP_malloc(size);
 }
 
-static std::atomic_uint64_t IDS = 0xFFFFFFFFFFFFFFFE;
-static pthread_key_t KEY;
-static pthread_once_t ONCE = PTHREAD_ONCE_INIT;
-static Regions REGIONS;
+extern "C" void free(void *ptr) {
+  init_thread();
+  return RP_free(ptr);
+}
 
-__thread uint64_t ID = 0;
+extern "C" void *realloc(void *ptr, size_t size) {
+  init_thread();
+  return RP_realloc(ptr, size);
+}
 
-void destroy_thread(void *value) { IDS.fetch_or(ID); }
+extern "C" size_t malloc_usable_size(void *ptr) {
+  init_thread();
+  return RP_malloc_size(ptr);
+}
+
+// https://github.com/ricleite/lrmalloc/blob/c5c322e5378555dd4f87095e4935efcb9a5f239b/lrmalloc.cpp#L526
+extern "C" void *memalign(size_t alignment, size_t size) {
+  init_thread();
+
+  size = ALIGN_VAL(size, alignment);
+
+  // allocations smaller than PAGE will be correctly aligned
+  // this is because size >= alignment, and size will map to a small class
+  // size with the formula 2^X + A*2^(X-1) + C*2^(X-2)
+  // since size is a multiple of alignment, the lowest size class power of
+  // two is already >= alignment
+  // this does not work if allocation > PAGE even if it's a small class size,
+  // because the superblock for those allocations is only guaranteed
+  // to be page aligned
+  // force such allocations to become large block allocs
+  if (UNLIKELY(size > 4096)) {
+    // hotfix solution for this case is to force allocation to be large
+    size = std::max<size_t>(size, MAX_SZ + 1);
+
+    // large blocks are page-aligned
+    // if user asks for a diabolical alignment, need more pages to
+    // fulfil it
+    bool const needsMorePages = (alignment > 4096);
+    assert(!needsMorePages);
+  }
+
+  return RP_malloc(size);
+}
+
+extern "C" int posix_memalign(void **pointer, size_t align, size_t size) {
+  *pointer = memalign(align, size);
+  return *pointer != nullptr;
+}
+
+// Hack to get around static initializer clobbering fields
+// after we call init_process earlier, during some other
+// initializer function that allocates.
+static uint8_t MANAGERS[sizeof(RegionManager[LAST_IDX])];
+static uint8_t REGIONS[sizeof(Regions)];
 
 void init_process() {
-  pthread_key_create(&KEY, destroy_thread);
+  ralloc::_rgs = (Regions *)REGIONS;
+  new ((Regions *)REGIONS) Regions((RegionManager(&)[LAST_IDX])MANAGERS);
+  new (&ralloc::sizeclass) SizeClass();
 
-  ralloc::_rgs = &REGIONS;
+  size_t size = 1ull << 34;
+  uint64_t num_sb = size / SBSIZE;
+
+  for (int i = 0; i < LAST_IDX; i++) {
+    switch (i) {
+    case DESC_IDX:
+      ralloc::_rgs->create("", num_sb * DESCSIZE, false, true);
+      break;
+    case SB_IDX:
+      ralloc::_rgs->create("", num_sb * SBSIZE, false, false);
+      break;
+    case META_IDX:
+      ralloc::base_md =
+          ralloc::_rgs->create_for<BaseMeta>("", sizeof(BaseMeta), false);
+      break;
+    } // switch
+  }
+
+  ralloc::initialized = true;
 }
 
 void init_thread() {
-  pthread_once(&ONCE, init_process);
-  pthread_setspecific(KEY, (void *)1);
-
-  if (ID > 0) {
+  if (ralloc::initialized) {
     return;
   }
 
-  uint64_t ids = IDS.load();
-  uint64_t id;
-  do {
-    id = std::countr_zero(IDS.load());
-  } while (!IDS.compare_exchange_strong(ids, ids & !(1 << id),
-                                        std::memory_order::acq_rel,
-                                        std::memory_order::acquire));
-
-  ID = id;
+  init_process();
 }

@@ -195,6 +195,40 @@ void RegionManager::__remap_transient_region(){
     DBG_PRINT("Curr_addr: %p\n", curr_addr_ptr->load());
 }
 
+void RegionManager::__map_numa_region(){
+    int node = 0;
+    if (char* value = std::getenv("CXL_NUMA_NODE")) {
+        node = atoi(value);
+    }
+
+    void* addr =
+        mmap(0, FILESIZE, PROT_READ | PROT_WRITE,
+            MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE, 0, 0);
+
+    if (addr == MAP_FAILED) {
+        std::cerr << "mmap" << std::endl;
+        exit(1);
+    }
+
+    const unsigned long mask = 1 << node;
+    if (mbind(addr, FILESIZE, MPOL_BIND, &mask, sizeof(mask) * 8, 0) < 0) {
+        std::cerr << "mbind" << std::endl;
+        exit(1);
+    }
+
+    base_addr = (char*) addr;
+    // | curr_addr  |
+    // | heap_start |
+    // |     size   |
+    new (((atomic_pptr<char>*) base_addr)) atomic_pptr<char>((char*) ((size_t)addr + PAGESIZE));
+    curr_addr_ptr = (atomic_pptr<char>*)base_addr;
+    *(uint64_t*)((size_t)base_addr + 2*sizeof(atomic_pptr<char>)) = FILESIZE;
+
+    FLUSH(curr_addr_ptr);
+    FLUSH((uint64_t*)((size_t)base_addr + 2*sizeof(atomic_pptr<char>)));
+    FLUSHFENCE;
+}
+
 //persist the curr and base address
 void RegionManager::__close_persistent_region(){
     FLUSHFENCE;
