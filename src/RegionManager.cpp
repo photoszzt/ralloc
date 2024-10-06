@@ -196,24 +196,21 @@ void RegionManager::__remap_transient_region(){
 }
 
 void RegionManager::__map_numa_region(){
-    int node = 0;
-    if (char* value = std::getenv("CXL_NUMA_NODE")) {
-        node = atoi(value);
-    }
-
     void* addr =
         mmap(0, FILESIZE, PROT_READ | PROT_WRITE,
-            MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE, 0, 0);
+            MAP_ANONYMOUS | MAP_PRIVATE, 0, 0);
 
     if (addr == MAP_FAILED) {
         std::cerr << "mmap" << std::endl;
         exit(1);
     }
 
-    const unsigned long mask = 1 << node;
-    if (mbind(addr, FILESIZE, MPOL_BIND, &mask, sizeof(mask) * 8, 0) < 0) {
-        std::cerr << "mbind" << std::endl;
-        exit(1);
+    if (char* value = std::getenv("CXL_NUMA_NODE")) {
+        const unsigned long mask = 1 << std::strtoul(value, nullptr, 10);
+        if (mbind(addr, FILESIZE, MPOL_BIND, &mask, sizeof(mask) * 8, 0) < 0) {
+            std::cerr << "mbind" << std::endl;
+            exit(1);
+        }
     }
 
     base_addr = (char*) addr;
