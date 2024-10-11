@@ -1,37 +1,35 @@
 #include "BaseMeta.hpp"
 #include "SizeClass.hpp"
 #include "ralloc.hpp"
-#include <atomic>
-#include <bit>
 #include <cstddef>
 #include <cstdint>
 #include <pthread.h>
 
-static void init_thread();
+static void RP_init_thread();
 
-extern "C" void *malloc(size_t size) {
-  init_thread();
+extern "C" void *RP_malloc(size_t size) {
+  RP_init_thread();
   return RP_malloc(size);
 }
 
-extern "C" void free(void *ptr) {
-  init_thread();
+extern "C" void RP_free(void *ptr) {
+  RP_init_thread();
   return RP_free(ptr);
 }
 
-extern "C" void *realloc(void *ptr, size_t size) {
-  init_thread();
+extern "C" void *RP_realloc(void *ptr, size_t size) {
+  RP_init_thread();
   return RP_realloc(ptr, size);
 }
 
-extern "C" size_t malloc_usable_size(void *ptr) {
-  init_thread();
+extern "C" size_t RP_malloc_usable_size(void *ptr) {
+  RP_init_thread();
   return RP_malloc_size(ptr);
 }
 
 // https://github.com/ricleite/lrmalloc/blob/c5c322e5378555dd4f87095e4935efcb9a5f239b/lrmalloc.cpp#L526
-extern "C" void *memalign(size_t alignment, size_t size) {
-  init_thread();
+extern "C" void *RP_memalign(size_t alignment, size_t size) {
+  RP_init_thread();
 
   size = ALIGN_VAL(size, alignment);
 
@@ -58,8 +56,8 @@ extern "C" void *memalign(size_t alignment, size_t size) {
   return RP_malloc(size);
 }
 
-extern "C" int posix_memalign(void **pointer, size_t align, size_t size) {
-  *pointer = memalign(align, size);
+extern "C" int RP_posix_memalign(void **pointer, size_t align, size_t size) {
+  *pointer = RP_memalign(align, size);
   return *pointer != nullptr;
 }
 
@@ -69,7 +67,7 @@ extern "C" int posix_memalign(void **pointer, size_t align, size_t size) {
 static uint8_t MANAGERS[sizeof(RegionManager[LAST_IDX])];
 static uint8_t REGIONS[sizeof(Regions)];
 
-static void init_process() {
+static void RP_init_process() {
   ralloc::_rgs = (Regions *)REGIONS;
   new ((Regions *)REGIONS) Regions((RegionManager(&)[LAST_IDX])MANAGERS);
   new (&ralloc::sizeclass) SizeClass();
@@ -95,10 +93,10 @@ static void init_process() {
   ralloc::initialized = true;
 }
 
-static void init_thread() {
+static void RP_init_thread() {
   if (ralloc::initialized) {
     return;
   }
 
-  init_process();
+  RP_init_process();
 }
