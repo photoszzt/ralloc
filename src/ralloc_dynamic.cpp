@@ -1,5 +1,6 @@
 #include "BaseMeta.hpp"
 #include "SizeClass.hpp"
+#include "TCache.hpp"
 #include "ralloc.hpp"
 #include <atomic>
 #include <bit>
@@ -8,6 +9,9 @@
 #include <pthread.h>
 
 static void init_thread();
+
+static pthread_key_t KEY;
+thread_local bool initialized = false;
 
 extern "C" void *malloc(size_t size) {
   init_thread();
@@ -69,6 +73,8 @@ extern "C" int posix_memalign(void **pointer, size_t align, size_t size) {
 static uint8_t MANAGERS[sizeof(RegionManager[LAST_IDX])];
 static uint8_t REGIONS[sizeof(Regions)];
 
+static void destroy_thread(void *arg) { ralloc::public_flush_cache(); }
+
 static void init_process() {
   ralloc::_rgs = (Regions *)REGIONS;
   new ((Regions *)REGIONS) Regions((RegionManager(&)[LAST_IDX])MANAGERS);
@@ -92,13 +98,19 @@ static void init_process() {
     } // switch
   }
 
+  pthread_key_create(&KEY, destroy_thread);
   ralloc::initialized = true;
 }
 
 static void init_thread() {
-  if (ralloc::initialized) {
+  if (initialized) {
     return;
   }
 
-  init_process();
+  if (!ralloc::initialized) {
+    init_process();
+  }
+
+  pthread_setspecific(KEY, (void *)1);
+  initialized = true;
 }

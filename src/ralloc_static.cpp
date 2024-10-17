@@ -28,7 +28,7 @@ static void ralloc_init_process() {
   new ((Regions *)REGIONS) Regions((RegionManager(&)[LAST_IDX])MANAGERS);
   new (&ralloc::sizeclass) SizeClass();
 
-  size_t size = 1ull << 34;
+  size_t size = 1ull << 35;
   uint64_t num_sb = size / SBSIZE;
 
   for (int i = 0; i < LAST_IDX; i++) {
