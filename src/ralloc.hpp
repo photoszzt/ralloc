@@ -45,6 +45,10 @@ void* RP_realloc(void* ptr, size_t new_size);
 int RP_in_prange(void* ptr);
 /* return 1 if the query is invalid, otherwise 0 and write start and end addr to the parameter. */
 int RP_region_range(int idx, void** start_addr, void** end_addr);
+
+size_t RP_pointer_to_offset(void* pointer);
+void* RP_offset_to_pointer(size_t offset);
+
 #ifdef __cplusplus
 }
 #endif

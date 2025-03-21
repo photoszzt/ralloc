@@ -168,3 +168,11 @@ int RP_region_range(int idx, void** start_addr, void** end_addr){
     *end_addr = (void*) ((uint64_t)_rgs->regions_address[idx] + _rgs->regions[idx]->FILESIZE);
     return 0;
 }
+
+size_t RP_pointer_to_offset(void* pointer) {
+    return (size_t) _rgs->untranslate(SB_IDX, (char*) pointer);
+}
+
+void* RP_offset_to_pointer(size_t offset) {
+    return (void*) _rgs->translate(SB_IDX, (char*) offset);
+}
