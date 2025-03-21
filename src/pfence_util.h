@@ -33,7 +33,6 @@
 // #else
 //   #define PWB_IS_CLWB
 // #endif
-#define PWB_IS_CLWB
 
 #ifdef DUR_LIN
   #ifdef PWB_IS_NOOP
@@ -43,7 +42,7 @@
     #define FLUSH(addr) asm volatile ("clflush (%0)" :: "r"(addr))
     #define FLUSHFENCE 
   #elif defined(PWB_IS_CLWB)
-    #if defined(EADR) || defined(GFP)
+    #if defined(EADR) || defined(GPF)
     #define FLUSH(addr)
     #define FLUSHFENCE asm volatile ("sfence" ::: "memory")
     #else
