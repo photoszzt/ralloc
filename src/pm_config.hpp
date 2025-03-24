@@ -55,7 +55,7 @@ enum RegionIndex : int {
 
 /* SHM_SIMULATING switches to compatible mode for machines without real persistent memory. */
 #ifdef SHM_SIMULATING
-  #define HEAPFILE_PREFIX "/dev/shm/"
+  #define HEAPFILE_PREFIX "/"
   #define MMAP_FLAG MAP_SHARED
 #else
   #define HEAPFILE_PREFIX "/mnt/pmem/"

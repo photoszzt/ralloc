@@ -53,15 +53,16 @@
 void RegionManager::__map_persistent_region(){
     DBG_PRINT("Creating a new persistent region, filename %s...\n", HEAPFILE.c_str());
     int fd;
-    fd  = open(HEAPFILE.c_str(), O_RDWR | O_CREAT | O_TRUNC,
+    fd  = shm_open(HEAPFILE, O_RDWR | O_CREAT | O_TRUNC,
                 S_IRUSR | S_IWUSR);
 
     FD = fd;
-    off_t offt = lseek(fd, FILESIZE-1, SEEK_SET);
-    assert(offt != -1);
-
-    int result = write(fd, "", 1);
-    assert(result != -1);
+    ftruncate(fd, FILESIZE);
+    // off_t offt = lseek(fd, FILESIZE-1, SEEK_SET);
+    // assert(offt != -1);
+    //
+    // int result = write(fd, "", 1);
+    // assert(result != -1);
 
     DBG_PRINT("file size %lx...\n", FILESIZE);
     void * addr =
@@ -98,20 +99,20 @@ void RegionManager::__map_persistent_region(){
 }
 
 void RegionManager::__remap_persistent_region(){
-    DBG_PRINT("Remapping the persistent region..., filename %s\n", HEAPFILE.c_str());
+    DBG_PRINT("Remapping the persistent region..., filename %s\n", HEAPFILE);
     int fd;
-    fd = open(HEAPFILE.c_str(), O_RDWR,
+    fd = shm_open(HEAPFILE, O_RDWR,
                 S_IRUSR | S_IWUSR);
 
     FD = fd;
-    off_t offt = lseek(fd, FILESIZE-1, SEEK_SET);
-    assert(offt != -1);
-
-    int result = write(fd, "", 1);
-    assert(result != -1);
-
-    offt = lseek(fd, 0, SEEK_SET);
-    assert (offt == 0);
+    // off_t offt = lseek(fd, FILESIZE-1, SEEK_SET);
+    // assert(offt != -1);
+    //
+    // int result = write(fd, "", 1);
+    // assert(result != -1);
+    //
+    // offt = lseek(fd, 0, SEEK_SET);
+    // assert (offt == 0);
 
     DBG_PRINT("file size %lx...\n", FILESIZE);
     void * addr =
@@ -132,15 +133,17 @@ void RegionManager::__remap_persistent_region(){
 void RegionManager::__map_transient_region(){
     DBG_PRINT("Creating a new transient region...\n");
     int fd;
-    fd  = open(HEAPFILE.c_str(), O_RDWR | O_CREAT | O_TRUNC,
+    fd  = shm_open(HEAPFILE, O_RDWR | O_CREAT | O_TRUNC,
                 S_IRUSR | S_IWUSR);
 
     FD = fd;
-    off_t offt = lseek(fd, FILESIZE-1, SEEK_SET);
-    assert(offt != -1);
+    ftruncate(fd, FILESIZE);
 
-    int result = write(fd, "", 1);
-    assert(result != -1);
+    // off_t offt = lseek(fd, FILESIZE-1, SEEK_SET);
+    // assert(offt != -1);
+    //
+    // int result = write(fd, "", 1);
+    // assert(result != -1);
 
     void * addr =
         mmap(0, FILESIZE, PROT_READ | PROT_WRITE, 
@@ -169,18 +172,18 @@ void RegionManager::__map_transient_region(){
 void RegionManager::__remap_transient_region(){
     DBG_PRINT("Remapping the transient region...\n");
     int fd;
-    fd = open(HEAPFILE.c_str(), O_RDWR,
+    fd = shm_open(HEAPFILE, O_RDWR,
                 S_IRUSR | S_IWUSR);
 
     FD = fd;
-    off_t offt = lseek(fd, FILESIZE-1, SEEK_SET);
-    assert(offt != -1);
-
-    int result = write(fd, "", 1);
-    assert(result != -1);
-
-    offt = lseek(fd, 0, SEEK_SET);
-    assert (offt == 0);
+    // off_t offt = lseek(fd, FILESIZE-1, SEEK_SET);
+    // assert(offt != -1);
+    //
+    // int result = write(fd, "", 1);
+    // assert(result != -1);
+    //
+    // offt = lseek(fd, 0, SEEK_SET);
+    // assert (offt == 0);
 
     void * addr =
         mmap(0, FILESIZE, PROT_READ | PROT_WRITE, 
@@ -352,6 +355,6 @@ void RegionManager::__destroy(){
         std::cout<<"File "<<HEAPFILE<<" doesn't exist!\n";
         return;
     }
-    remove(HEAPFILE.c_str());
+    remove(HEAPFILE);
     return;
 }

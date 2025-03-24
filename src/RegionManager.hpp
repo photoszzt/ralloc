@@ -58,13 +58,13 @@
 class RegionManager{
 public:
     uint64_t FILESIZE;
-    std::string HEAPFILE;
+    char* HEAPFILE;
     int FD = 0;
     char *base_addr = nullptr;
     atomic_pptr<char>* curr_addr_ptr;//this always points to the place of base_addr
     bool persist;
 
-    RegionManager(const std::string& file_path, uint64_t size, bool p = true, bool imm_expand = true):
+    RegionManager(char* file_path, uint64_t size, bool p = true, bool imm_expand = true):
         FILESIZE(((size/PAGESIZE)+2)*PAGESIZE), // size should align to page
         HEAPFILE(file_path),
         curr_addr_ptr(nullptr),
@@ -82,7 +82,7 @@ public:
                     __store_heap_start(t);
                 }
             }
-        } else if (HEAPFILE.empty()) {
+        } else if (HEAPFILE == nullptr) {
             __map_numa_region();
             if (imm_expand) {
                 void* t;
@@ -116,8 +116,8 @@ public:
     //mmap anynomous, not used by default
     // void __map_transient_region();
 
-    inline static bool exists_test (const std::string& name){
-        std::ifstream f(name.c_str());
+    inline static bool exists_test (char* name){
+        std::ifstream f(name);
         return f.good();
     }
 
@@ -172,7 +172,7 @@ class Regions{
 public:
     RegionManager* regions[LAST_IDX];
     char* regions_address[LAST_IDX]; // base address of each region
-    int cur_idx;
+    int cur_idx = 0;
 
     Regions() {}
 
@@ -198,13 +198,14 @@ public:
     }
 
     /* to create desc or sb region */
-    void create(const std::string& file_path, uint64_t size, bool p = true, bool imm_expand = true){
-        bool restart = !file_path.empty() && exists_test(file_path);
-        if (regions[cur_idx] != nullptr) {
-            new (regions[cur_idx]) RegionManager(file_path,size,p,imm_expand);
-        }else {
-            regions[cur_idx] = new RegionManager(file_path,size,p,imm_expand);
-        }
+    void create(char* file_path, uint64_t size, bool p = true, bool imm_expand = true){
+        bool restart = exists_test(file_path);
+        // if (regions[cur_idx] != nullptr) {
+        //     new (regions[cur_idx]) RegionManager(file_path,size,p,imm_expand);
+        // }else {
+        //     regions[cur_idx] = new RegionManager(file_path,size,p,imm_expand);
+        // }
+        regions[cur_idx] = new RegionManager(file_path,size,p,imm_expand);
         if(imm_expand || restart)
             regions_address[cur_idx] = (char*)regions[cur_idx]->__fetch_heap_start();
         else
@@ -215,13 +216,14 @@ public:
 
     /* to create metadata region, calling constructor of type T (BaseMeta) */
     template<class T>
-    T* create_for(const std::string& file_path, uint64_t size, bool p = true){
-        bool restart = !file_path.empty() && exists_test(file_path);
-        if (regions[cur_idx] != nullptr) {
-            new (regions[cur_idx]) RegionManager(file_path,size,p,true);
-        } else {
-            regions[cur_idx]= new RegionManager(file_path,size,p,true);
-        }
+    T* create_for(char* file_path, uint64_t size, bool p = true){
+        bool restart = exists_test(file_path);
+        // if (regions[cur_idx] != nullptr) {
+        //     new (regions[cur_idx]) RegionManager(file_path,size,p,true);
+        // } else {
+        //     regions[cur_idx]= new RegionManager(file_path,size,p,true);
+        // }
+        regions[cur_idx]= new RegionManager(file_path,size,p,true);
         T* t = (T*) regions[cur_idx]->__fetch_heap_start();
         if(!restart){
             new (t) T();

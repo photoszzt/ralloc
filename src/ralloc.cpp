@@ -31,30 +31,45 @@ namespace ralloc{
 using namespace ralloc;
 extern void public_flush_cache();
 
-int _RP_init(const char* _id, uint64_t size){
-    string filepath;
-    string id(_id);
+int _RP_init(const char* id, uint64_t size){
     // thread_num = thd_num;
 
     // reinitialize global variables in case they haven't
     new (&sizeclass) SizeClass();
 
-    filepath = HEAPFILE_PREFIX + id;
     assert(sizeof(Descriptor) == DESCSIZE); // check desc size
     assert(size < MAX_SB_REGION_SIZE && size >= MIN_SB_REGION_SIZE); // ensure user input is >=MAX_SB_REGION_SIZE
     uint64_t num_sb = size/SBSIZE;
-    bool restart = Regions::exists_test(filepath+"_basemd");
+    bool restart;
     _rgs = new Regions();
+
+    char* temp;
+
     for(int i=0; i<LAST_IDX;i++){
     switch(i){
     case DESC_IDX:
-        _rgs->create(filepath+"_desc", num_sb*DESCSIZE, true, true);
+        temp = (char*) malloc(1 + strlen(id) + 5 + 1);
+        strcpy(temp, "/");
+        strcat(temp, id);
+        strcat(temp, "_desc");
+
+        _rgs->create(temp, num_sb*DESCSIZE, true, true);
         break;
     case SB_IDX:
-        _rgs->create(filepath+"_sb", num_sb*SBSIZE, true, false);
+        temp = (char*) malloc(1 + strlen(id) + 3 + 1);
+        strcpy(temp, "/");
+        strcat(temp, id);
+        strcat(temp, "_sb");
+
+        _rgs->create(temp, num_sb*SBSIZE, true, false);
         break;
     case META_IDX:
-        base_md = _rgs->create_for<BaseMeta>(filepath+"_basemd", sizeof(BaseMeta), true);
+        temp = (char*) malloc(1 + strlen(id) + 7 + 1);
+        strcpy(temp, "/");
+        strcat(temp, id);
+        strcat(temp, "_basemd");
+        restart = Regions::exists_test(temp);
+        base_md = _rgs->create_for<BaseMeta>(temp, sizeof(BaseMeta), true);
         break;
     } // switch
     }
