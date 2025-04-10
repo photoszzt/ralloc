@@ -66,7 +66,7 @@ enum RegionIndex : int {
 /* Customizable Values */
 const uint64_t MAX_DESC_AMOUNT_BITS = 24;
 const uint64_t MIN_SB_REGION_SIZE = 1*1024*1024*1024ULL; // min sb region size
-const uint64_t SB_REGION_EXPAND_SIZE = MIN_SB_REGION_SIZE;
+const uint64_t SB_REGION_EXPAND_SIZE = 512ULL * 1024ULL * 1024ULL; // 512 MiB
 const int MAX_ROOTS = 1024;
 
 /* System Macros */
