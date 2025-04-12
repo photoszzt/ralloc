@@ -117,7 +117,13 @@ public:
     // void __map_transient_region();
 
     inline static bool exists_test (char* name){
+#ifdef SHM_SIMULATING
+        std::string path("/dev/shm");
+        path += name;
+        std::ifstream f(path);
+#else
         std::ifstream f(name);
+#endif
         return f.good();
     }
 
