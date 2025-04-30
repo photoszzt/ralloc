@@ -35,6 +35,7 @@
 #define _REGION_MANAGER_HPP_
 
 #include <string>
+#include <filesystem>
 #include <fstream>
 #include <atomic>
 #include <vector>
@@ -43,6 +44,17 @@
 #include "pm_config.hpp"
 #include "pfence_util.h"
 #include "pptr.hpp"
+
+inline static bool exists_test (char* name){
+#ifdef SHM_SIMULATING
+    std::string path("/dev/shm");
+    path += name;
+    std::ifstream f(path);
+#else
+    std::ifstream f(name);
+#endif
+    return f.good();
+}
 
 
 /* layout of any region:
@@ -116,17 +128,6 @@ public:
     //mmap anynomous, not used by default
     // void __map_transient_region();
 
-    inline static bool exists_test (char* name){
-#ifdef SHM_SIMULATING
-        std::string path("/dev/shm");
-        path += name;
-        std::ifstream f(path);
-#else
-        std::ifstream f(name);
-#endif
-        return f.good();
-    }
-
     //mmap file
     //the only difference between persist and trans version is
     //persist always map to the same addr while trans doesn't
@@ -186,12 +187,6 @@ public:
         for (int i=0; i<LAST_IDX; i++) {
             regions[i] = &_regions[i];
         }
-    }
-
-    /* check if the file $name$ exists */
-    inline static bool exists_test (const std::string& name){
-        std::ifstream f(name.c_str());
-        return f.good();
     }
 
     /* equivalently destruct the instance of Regions */

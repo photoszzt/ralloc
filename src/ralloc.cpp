@@ -68,7 +68,7 @@ int _RP_init(const char* id, uint64_t size){
         strcpy(temp, "/");
         strcat(temp, id);
         strcat(temp, "_basemd");
-        restart = Regions::exists_test(temp);
+        restart = exists_test(temp);
         base_md = _rgs->create_for<BaseMeta>(temp, sizeof(BaseMeta), true);
         break;
     } // switch
