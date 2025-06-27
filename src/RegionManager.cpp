@@ -65,8 +65,20 @@ void RegionManager::__map_persistent_region(){
     // assert(result != -1);
 
     DBG_PRINT("file size %lx...\n", FILESIZE);
+
+    // The superblock region must be aligned to superblock size, but
+    // `mmap` only aligns to page size. In order for this to work
+    // across processes, we need to manually align the mapping.
+    void* reserve = mmap(0, FILESIZE + SBSIZE, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (reserve == MAP_FAILED) {
+        perror("mmap reserve");
+    }
+    assert(reserve != MAP_FAILED);
+
+    reserve = (void*) (((uint64_t) reserve + (SBSIZE - 1)) & ~(SBSIZE - 1));
+
     void * addr =
-        mmap(0, FILESIZE, PROT_READ | PROT_WRITE, MMAP_FLAG, fd, 0);
+        mmap(reserve, FILESIZE, PROT_READ | PROT_WRITE, MAP_FIXED | MMAP_FLAG, fd, 0);
     if (addr == MAP_FAILED) {
         perror("mmap");
     }
@@ -115,8 +127,20 @@ void RegionManager::__remap_persistent_region(){
     // assert (offt == 0);
 
     DBG_PRINT("file size %lx...\n", FILESIZE);
+
+    // The superblock region must be aligned to superblock size, but
+    // `mmap` only aligns to page size. In order for this to work
+    // across processes, we need to manually align the mapping.
+    void* reserve = mmap(0, FILESIZE + SBSIZE, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (reserve == MAP_FAILED) {
+        perror("mmap reserve");
+    }
+    assert(reserve != MAP_FAILED);
+
+    reserve = (void*) (((uint64_t) reserve + (SBSIZE - 1)) & ~(SBSIZE - 1));
+
     void * addr =
-        mmap(0, FILESIZE, PROT_READ | PROT_WRITE, MMAP_FLAG, fd, 0);
+        mmap(reserve, FILESIZE, PROT_READ | PROT_WRITE, MAP_FIXED | MMAP_FLAG, fd, 0);
     if (addr == MAP_FAILED) {
         perror("mmap");
     }
