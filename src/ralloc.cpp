@@ -67,35 +67,90 @@ FAILED:
     return -1;
 }
 
-int init(
-    uint64_t** rd_buff_vaddr, uint64_t* rd_buff_paddr,
-    uint64_t** wr_buff_vaddr, uint64_t* wr_buff_paddr,
-    uint64_t** target_buff_vaddr, uint64_t* target_buff_paddr) {
+uint64_t* rd_buff_vaddr = nullptr;
+uint64_t rd_buff_paddr = 0;
 
+uint64_t* wr_buff_vaddr = nullptr;
+uint64_t wr_buff_paddr = 0;
+
+uint64_t* target_buff_vaddr = nullptr;
+uint64_t target_buff_paddr = 0;
+
+int init_mcas() {
     int         init_ok = 0;
 
     /* Get the physical address of buffer */
     init_ok = get_addr_from_kmod("/proc/mcas_rd_buff",
             PAGESIZE * 16,
-            rd_buff_paddr,
-            rd_buff_vaddr
+            &rd_buff_paddr,
+            &rd_buff_vaddr
             );
     if (init_ok) { return -1;}
     init_ok = get_addr_from_kmod("/proc/mcas_wr_buff",
             PAGESIZE * 16,
-            wr_buff_paddr,
-            wr_buff_vaddr
+            &wr_buff_paddr,
+            &wr_buff_vaddr
             );
     if (init_ok) { return -1;}
 
     init_ok = get_addr_from_kmod("/proc/mcas_target_buff",
             PAGESIZE * 16,
-            target_buff_paddr,
-            target_buff_vaddr
+            &target_buff_paddr,
+            &target_buff_vaddr
             );
     if (init_ok) { return -1;}
     return 0;
 
+}
+
+static inline void movdir64b_addr(uint64_t* content_addr, uint64_t* wr_addr) {
+    asm volatile(
+        "mov %[wr_addr], %%r10\n"
+        "mov %[content_addr], %%r9\n"
+        "movdir64b 0x0(%%r9), %%r10 \n"
+        "sfence \n"
+        :
+        :[wr_addr] "r" (wr_addr), [content_addr] "r" (content_addr)
+        :"r9", "r10"
+    );
+}
+
+static inline void mcas_rd_nc(uint64_t* A, volatile uint64_t* B) {
+    __asm__ __volatile__ (
+        ".intel_syntax noprefix\n\t"
+        "movdqu xmm0, [rdi]\n\t"     // Load 64 bits from A into xmm0
+        "movdqu [rsi], xmm0\n\t"     // Store 64 bits from xmm0 into B
+        ".att_syntax prefix\n"
+        :
+        : "D"(A), "S"(B)
+        : "xmm0"
+    );
+}
+
+uint64_t mcas(uint64_t tid, uint64_t* address, uint64_t* compare, uint64_t exchange) {
+    uint64_t* wr_global = wr_buff_vaddr + (tid * 2 * 8);
+    uint64_t* rd_global = rd_buff_vaddr + (tid * 2 * 8);
+
+    alignas(64) uint64_t wr_local_buffer[8];
+    wr_local_buffer[0] = *compare;
+    wr_local_buffer[1] = exchange;
+    wr_local_buffer[2] = ((uint64_t) address) - ((uint64_t) target_buff_vaddr) + ((uint64_t) target_buff_paddr);
+    wr_local_buffer[3] = tid * 2;
+
+    movdir64b_addr(wr_local_buffer, wr_global);
+
+    alignas(16) uint64_t rd_local_buffer[2];
+    mcas_rd_nc(rd_global, rd_local_buffer);
+
+    uint64_t out = rd_local_buffer[0];
+    uint64_t success = rd_local_buffer[1];
+
+    if (success == 0 && out == 0) {
+        *compare = *address;
+    } else {
+        *compare = out;
+    }
+    return success;
 }
 
 int _RP_init(const char* id, uint64_t size){
@@ -110,19 +165,10 @@ int _RP_init(const char* id, uint64_t size){
     bool restart;
     _rgs = new Regions();
 
-    uint64_t* rd_buff_vaddr = nullptr;
-    uint64_t rd_buff_paddr = 0;
+    init_mcas();
+    // uint64_t dummy = 0;
+    // mcas(0, target_buff_vaddr, &dummy, 1);
 
-    uint64_t* wr_buff_vaddr = nullptr;
-    uint64_t wr_buff_paddr = 0;
-
-    uint64_t* target_buff_vaddr = nullptr;
-    uint64_t target_buff_paddr = 0;
-
-    init(
-            &rd_buff_vaddr, &rd_buff_paddr,
-            &wr_buff_vaddr, &wr_buff_paddr,
-            &target_buff_vaddr, &target_buff_paddr);
     std::cout << rd_buff_vaddr << std::endl;
     std::cout << rd_buff_paddr << std::endl;
     std::cout << wr_buff_vaddr << std::endl;
