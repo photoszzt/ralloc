@@ -48,12 +48,14 @@ int _RP_init(const char* id, uint64_t size){
     for(int i=0; i<LAST_IDX;i++){
     switch(i){
     case DESC_IDX:
-        temp = (char*) malloc(1 + strlen(id) + 5 + 1);
-        strcpy(temp, "/");
-        strcat(temp, id);
-        strcat(temp, "_desc");
+        // temp = (char*) malloc(1 + strlen(id) + 5 + 1);
+        // strcpy(temp, "/");
+        // strcat(temp, id);
+        // strcat(temp, "_desc");
+        //
+        // _rgs->create(temp, num_sb*DESCSIZE, true, true);
 
-        _rgs->create(temp, num_sb*DESCSIZE, true, true);
+        _rgs->set(num_sb*DESCSIZE, (char*) malloc(num_sb*DESCSIZE));
         break;
     case SB_IDX:
         temp = (char*) malloc(1 + strlen(id) + 3 + 1);

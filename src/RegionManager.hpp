@@ -76,6 +76,22 @@ public:
     atomic_pptr<char>* curr_addr_ptr;//this always points to the place of base_addr
     bool persist;
 
+    RegionManager(uint64_t size, char* address):
+        FILESIZE(((size/PAGESIZE)+2)*PAGESIZE),
+        HEAPFILE(nullptr),
+        base_addr(address),
+        curr_addr_ptr(nullptr),
+        persist(false)
+    {
+        new (((atomic_pptr<char>*) base_addr)) atomic_pptr<char>((char*) ((size_t)base_addr + PAGESIZE));
+        curr_addr_ptr = (atomic_pptr<char>*)base_addr;
+        *(uint64_t*)((size_t)base_addr + 2*sizeof(atomic_pptr<char>)) = FILESIZE;
+        void* t;
+        bool res = __nvm_region_allocator(&t,CACHELINE_SIZE,size); 
+        if(!res) assert(0&&"region allocation fails!");
+        __store_heap_start(t);
+    };
+
     RegionManager(char* file_path, uint64_t size, bool p = true, bool imm_expand = true):
         FILESIZE(((size/PAGESIZE)+2)*PAGESIZE), // size should align to page
         HEAPFILE(file_path),
@@ -196,6 +212,13 @@ public:
             regions_address[i]=nullptr;
         }
         cur_idx = 0;
+    }
+
+    void set(uint64_t size, char* address) {
+        regions[cur_idx] = new RegionManager(size, address);
+        regions_address[cur_idx] = (char*)regions[cur_idx]->__fetch_heap_start();
+        cur_idx++;
+        return;
     }
 
     /* to create desc or sb region */
