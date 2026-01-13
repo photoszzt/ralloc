@@ -153,6 +153,14 @@ uint64_t mcas(uint64_t tid, uint64_t* address, uint64_t* compare, uint64_t excha
     return success;
 }
 
+void mcas_store(uint64_t tid, uint64_t* address, uint64_t value) {
+    uint64_t compare = *address;
+    uint64_t success = 0;
+    while (success == 0) {
+        success = mcas(tid, address, &compare, value);
+    }
+}
+
 int _RP_init(const char* id, uint64_t size){
     // thread_num = thd_num;
 

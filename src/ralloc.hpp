@@ -49,6 +49,9 @@ int RP_region_range(int idx, void** start_addr, void** end_addr);
 size_t RP_pointer_to_offset(void* pointer);
 void* RP_offset_to_pointer(size_t offset);
 
+uint64_t mcas(uint64_t tid, uint64_t* address, uint64_t* compare, uint64_t exchange);
+void mcas_store(uint64_t tid, uint64_t* address, uint64_t value);
+
 #ifdef __cplusplus
 }
 #endif
