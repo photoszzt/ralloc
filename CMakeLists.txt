@@ -14,7 +14,7 @@ add_library(ralloc
   ${CMAKE_CURRENT_SOURCE_DIR}/src/ralloc.cpp
 )
 target_include_directories(ralloc PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
-target_compile_definitions(ralloc PRIVATE -DSHM_SIMULATING)
+target_compile_definitions(ralloc PRIVATE -DSHM_SIMULATING -DPWB_IS_NOOP)
 target_compile_options(ralloc PRIVATE "${PROJ_COMPILE_OPTIONS}")
 target_link_libraries(ralloc PUBLIC numa)
 target_link_options(ralloc PRIVATE "${PROJ_LINK_OPTIONS}")
@@ -32,3 +32,9 @@ add_library(ralloc_static STATIC
 target_compile_definitions(ralloc_static PRIVATE -DSHM_SIMULATING)
 target_compile_options(ralloc_static PRIVATE)
 target_link_libraries(ralloc_static PRIVATE ralloc numa)
+
+add_executable(mcas
+    ${CMAKE_CURRENT_SOURCE_DIR}/mcas.cpp
+)
+target_compile_definitions(mcas PRIVATE -DSHM_SIMULATING -DPWB_IS_NOOP)
+target_link_libraries(mcas PRIVATE ralloc numa)
