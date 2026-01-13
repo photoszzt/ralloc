@@ -7,11 +7,14 @@
 #include "ralloc.hpp"
 
 #include <string>
+#include <sys/mman.h>
 #include <functional>
+#include <fcntl.h>
 #include <atomic>
 #include <vector>
 #include <algorithm>
 #include <cstring>
+#include <unistd.h>
 
 #include "RegionManager.hpp"
 #include "BaseMeta.hpp"
@@ -31,6 +34,70 @@ namespace ralloc{
 using namespace ralloc;
 extern void public_flush_cache();
 
+int get_addr_from_kmod(
+        const char* file_name, 
+        uint64_t byte_size, 
+        uint64_t* ret_pa_val, 
+        uint64_t** ret_va_ptr
+        ) {
+    int         kmod_fd = 0;
+    ssize_t     bytes_read = 0;
+
+    if (file_name == NULL) {
+        return -1;
+    }
+    kmod_fd = open(file_name, O_RDWR); // FIXED: we can't open the file in read-only mode if we want to map it for both read and write
+    if (kmod_fd == -1) {
+        goto FAILED;
+    }
+    if ((bytes_read = read(kmod_fd, ret_pa_val, sizeof(uint64_t))) < 0) {
+        goto FAILED;
+    }
+    *ret_va_ptr = (uint64_t*)mmap(NULL, byte_size, 
+            PROT_READ | PROT_WRITE, MAP_SHARED, kmod_fd, 0); 
+
+    if(*ret_va_ptr == (void *) -1){
+        goto FAILED;
+    }
+    if(*ret_va_ptr == (void *) 0){
+        goto FAILED;
+    }
+    return 0;
+FAILED:
+    return -1;
+}
+
+int init(
+    uint64_t** rd_buff_vaddr, uint64_t* rd_buff_paddr,
+    uint64_t** wr_buff_vaddr, uint64_t* wr_buff_paddr,
+    uint64_t** target_buff_vaddr, uint64_t* target_buff_paddr) {
+
+    int         init_ok = 0;
+
+    /* Get the physical address of buffer */
+    init_ok = get_addr_from_kmod("/proc/mcas_rd_buff",
+            PAGESIZE * 16,
+            rd_buff_paddr,
+            rd_buff_vaddr
+            );
+    if (init_ok) { return -1;}
+    init_ok = get_addr_from_kmod("/proc/mcas_wr_buff",
+            PAGESIZE * 16,
+            wr_buff_paddr,
+            wr_buff_vaddr
+            );
+    if (init_ok) { return -1;}
+
+    init_ok = get_addr_from_kmod("/proc/mcas_target_buff",
+            PAGESIZE * 16,
+            target_buff_paddr,
+            target_buff_vaddr
+            );
+    if (init_ok) { return -1;}
+    return 0;
+
+}
+
 int _RP_init(const char* id, uint64_t size){
     // thread_num = thd_num;
 
@@ -42,6 +109,26 @@ int _RP_init(const char* id, uint64_t size){
     uint64_t num_sb = size/SBSIZE;
     bool restart;
     _rgs = new Regions();
+
+    uint64_t* rd_buff_vaddr = nullptr;
+    uint64_t rd_buff_paddr = 0;
+
+    uint64_t* wr_buff_vaddr = nullptr;
+    uint64_t wr_buff_paddr = 0;
+
+    uint64_t* target_buff_vaddr = nullptr;
+    uint64_t target_buff_paddr = 0;
+
+    init(
+            &rd_buff_vaddr, &rd_buff_paddr,
+            &wr_buff_vaddr, &wr_buff_paddr,
+            &target_buff_vaddr, &target_buff_paddr);
+    std::cout << rd_buff_vaddr << std::endl;
+    std::cout << rd_buff_paddr << std::endl;
+    std::cout << wr_buff_vaddr << std::endl;
+    std::cout << wr_buff_paddr << std::endl;
+    std::cout << target_buff_vaddr << std::endl;
+    std::cout << target_buff_paddr << std::endl;
 
     char* temp;
 
