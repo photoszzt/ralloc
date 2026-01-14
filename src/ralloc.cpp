@@ -143,7 +143,7 @@ int init_mcas() {
     return 0;
 }
 
-static inline void movdir64b_addr(uint64_t* content_addr, uint64_t* wr_addr) {
+static inline void movdir64b_addr(volatile uint64_t* content_addr, volatile uint64_t* wr_addr) {
     asm volatile(
         "mov %[wr_addr], %%r10\n"
         "mov %[content_addr], %%r9\n"
@@ -155,7 +155,7 @@ static inline void movdir64b_addr(uint64_t* content_addr, uint64_t* wr_addr) {
     );
 }
 
-static inline void mcas_rd_nc(uint64_t* A, volatile uint64_t* B) {
+static inline void mcas_rd_nc(volatile uint64_t* A, volatile uint64_t* B) {
     __asm__ __volatile__ (
         ".intel_syntax noprefix\n\t"
         "movdqu xmm0, [rdi]\n\t"     // Load 64 bits from A into xmm0
@@ -168,10 +168,10 @@ static inline void mcas_rd_nc(uint64_t* A, volatile uint64_t* B) {
 }
 
 uint64_t mcas(uint64_t* address, uint64_t* compare, uint64_t exchange) {
-    uint64_t* wr_global = wr_buff_vaddr + (THREAD_ID * 2 * 8);
-    uint64_t* rd_global = rd_buff_vaddr + (THREAD_ID * 2 * 8);
+    volatile uint64_t* wr_global = wr_buff_vaddr + (THREAD_ID * 2 * 8);
+    volatile uint64_t* rd_global = rd_buff_vaddr + (THREAD_ID * 2 * 8);
 
-    alignas(64) uint64_t wr_local_buffer[8];
+    alignas(64) volatile uint64_t wr_local_buffer[8];
     wr_local_buffer[0] = *compare;
     wr_local_buffer[1] = exchange;
     wr_local_buffer[2] = ((uint64_t) address) - ((uint64_t) target_buff_vaddr) + ((uint64_t) target_buff_paddr);
@@ -179,7 +179,7 @@ uint64_t mcas(uint64_t* address, uint64_t* compare, uint64_t exchange) {
 
     movdir64b_addr(wr_local_buffer, wr_global);
 
-    alignas(16) uint64_t rd_local_buffer[2];
+    alignas(16) volatile uint64_t rd_local_buffer[2];
     mcas_rd_nc(rd_global, rd_local_buffer);
 
     uint64_t out = rd_local_buffer[0];
@@ -214,15 +214,6 @@ int _RP_init(const char* id, uint64_t size){
     _rgs = new Regions();
 
     init_mcas();
-    // uint64_t dummy = 0;
-    // mcas(0, target_buff_vaddr, &dummy, 1);
-
-    std::cout << rd_buff_vaddr << std::endl;
-    std::cout << rd_buff_paddr << std::endl;
-    std::cout << wr_buff_vaddr << std::endl;
-    std::cout << wr_buff_paddr << std::endl;
-    std::cout << target_buff_vaddr << std::endl;
-    std::cout << target_buff_paddr << std::endl;
 
     char* temp;
 
@@ -236,7 +227,7 @@ int _RP_init(const char* id, uint64_t size){
         //
         // _rgs->create(temp, num_sb*DESCSIZE, true, true);
 
-        _rgs->set(num_sb*DESCSIZE, (char*) malloc(num_sb*DESCSIZE));
+        _rgs->set(num_sb*DESCSIZE, (char*) target_buff_vaddr);
         break;
     case SB_IDX:
         temp = (char*) malloc(1 + strlen(id) + 3 + 1);
