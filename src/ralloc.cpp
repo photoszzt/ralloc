@@ -108,42 +108,37 @@ uint64_t* target_buff_vaddr = nullptr;
 uint64_t target_buff_paddr = 0;
 
 int init_mcas() {
-    int         init_ok = 0;
-    uint64_t*   pci_vaddr = nullptr;
+    uint64_t TGT_SIZE = 64 * 1024 * 1024;
+    uint64_t RD_SIZE = 64 * 1024;
+    uint64_t WR_SIZE = 64 * 1024;
+
+    int init_ok = 0;
+    uint64_t* pci_vaddr = nullptr;
 
     init_ok = init_csr(&pci_vaddr);
     if (init_ok) {
         return -1;
     }
 
-    /* Get the physical address of buffer */
-    init_ok = get_addr_from_kmod("/proc/mcas_rd_buff",
-            PAGESIZE * 16,
-            &rd_buff_paddr,
-            &rd_buff_vaddr,
-            pci_vaddr,
-            CSR_RD_BUFF
-            );
-    if (init_ok) { return -1;}
-    init_ok = get_addr_from_kmod("/proc/mcas_wr_buff",
-            PAGESIZE * 16,
-            &wr_buff_paddr,
-            &wr_buff_vaddr,
-            pci_vaddr,
-            CSR_WR_BUFF
-            );
-    if (init_ok) { return -1;}
+    init_ok =
+        get_addr_from_kmod("/proc/mcas_target_buff", TGT_SIZE, &target_buff_paddr,
+                            &target_buff_vaddr, pci_vaddr, -1);
+    if (init_ok) {
+        return -1;
+    }
 
-    init_ok = get_addr_from_kmod("/proc/mcas_target_buff",
-            PAGESIZE * 16,
-            &target_buff_paddr,
-            &target_buff_vaddr,
-            pci_vaddr,
-            -1
-            );
-    if (init_ok) { return -1;}
+    rd_buff_paddr =
+        (uint64_t)(((uint64_t) target_buff_paddr) + TGT_SIZE - RD_SIZE);
+    rd_buff_vaddr =
+        (uint64_t *)(((uint64_t) target_buff_vaddr) + TGT_SIZE - RD_SIZE);
+    pci_vaddr[CSR_RD_BUFF] = rd_buff_paddr;
+
+    wr_buff_paddr =
+        (uint64_t)(((uint64_t) target_buff_paddr) + TGT_SIZE - RD_SIZE - WR_SIZE);
+    wr_buff_vaddr = (uint64_t *)(((uint64_t) target_buff_vaddr) + TGT_SIZE -
+                                    RD_SIZE - WR_SIZE);
+    pci_vaddr[CSR_WR_BUFF] = wr_buff_paddr;
     return 0;
-
 }
 
 static inline void movdir64b_addr(uint64_t* content_addr, uint64_t* wr_addr) {
