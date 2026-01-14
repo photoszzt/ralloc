@@ -107,6 +107,8 @@ uint64_t wr_buff_paddr = 0;
 uint64_t* target_buff_vaddr = nullptr;
 uint64_t target_buff_paddr = 0;
 
+thread_local uint64_t THREAD_ID = 0;
+
 int init_mcas() {
     uint64_t TGT_SIZE = 64 * 1024 * 1024;
     uint64_t RD_SIZE = 64 * 1024;
@@ -165,15 +167,15 @@ static inline void mcas_rd_nc(uint64_t* A, volatile uint64_t* B) {
     );
 }
 
-uint64_t mcas(uint64_t tid, uint64_t* address, uint64_t* compare, uint64_t exchange) {
-    uint64_t* wr_global = wr_buff_vaddr + (tid * 2 * 8);
-    uint64_t* rd_global = rd_buff_vaddr + (tid * 2 * 8);
+uint64_t mcas(uint64_t* address, uint64_t* compare, uint64_t exchange) {
+    uint64_t* wr_global = wr_buff_vaddr + (THREAD_ID * 2 * 8);
+    uint64_t* rd_global = rd_buff_vaddr + (THREAD_ID * 2 * 8);
 
     alignas(64) uint64_t wr_local_buffer[8];
     wr_local_buffer[0] = *compare;
     wr_local_buffer[1] = exchange;
     wr_local_buffer[2] = ((uint64_t) address) - ((uint64_t) target_buff_vaddr) + ((uint64_t) target_buff_paddr);
-    wr_local_buffer[3] = tid * 2;
+    wr_local_buffer[3] = THREAD_ID * 2;
 
     movdir64b_addr(wr_local_buffer, wr_global);
 
@@ -191,11 +193,11 @@ uint64_t mcas(uint64_t tid, uint64_t* address, uint64_t* compare, uint64_t excha
     return success;
 }
 
-void mcas_store(uint64_t tid, uint64_t* address, uint64_t value) {
+void mcas_store(uint64_t* address, uint64_t value) {
     uint64_t compare = *address;
     uint64_t success = 0;
     while (success == 0) {
-        success = mcas(tid, address, &compare, value);
+        success = mcas(address, &compare, value);
     }
 }
 
@@ -286,6 +288,10 @@ struct RallocHolder{
 int RP_init(const char* _id, uint64_t size){
     static RallocHolder _holder(_id,size);
     return _holder.init_ret_val;
+}
+
+void RP_init_thread(uint64_t tid) {
+    THREAD_ID = tid;
 }
 
 int RP_recover(){

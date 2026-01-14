@@ -32,6 +32,8 @@ void* RP_get_root_c(uint64_t i);
 int RP_init(const char* _id, uint64_t size);
 #endif
 
+void RP_init_thread(uint64_t tid);
+
 /* return 1 if it's dirty, otherwise 0. */
 int RP_recover();
 void RP_close();
@@ -49,8 +51,8 @@ int RP_region_range(int idx, void** start_addr, void** end_addr);
 size_t RP_pointer_to_offset(void* pointer);
 void* RP_offset_to_pointer(size_t offset);
 
-uint64_t mcas(uint64_t tid, uint64_t* address, uint64_t* compare, uint64_t exchange);
-void mcas_store(uint64_t tid, uint64_t* address, uint64_t value);
+uint64_t mcas(uint64_t* address, uint64_t* compare, uint64_t exchange);
+void mcas_store(uint64_t* address, uint64_t value);
 
 #ifdef __cplusplus
 }
