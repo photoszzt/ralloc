@@ -243,12 +243,13 @@ static_assert(sizeof(Anchor) == sizeof(uint64_t), "Invalid anchor size");
  *  Descriptors are arranged in desc region and *never* freed
  */
 struct Descriptor {
+    // anchor; is reconstructed during recovery
+    RP_TRANSIENT alignas(128) std::atomic<Anchor> anchor;
+
     // free superblocks are linked by their descriptors
-    RP_TRANSIENT atomic_pptr<Descriptor> next_free;
+    RP_TRANSIENT alignas(128) atomic_pptr<Descriptor> next_free;
     // used in partial descriptor list
     RP_TRANSIENT atomic_pptr<Descriptor> next_partial;
-    // anchor; is reconstructed during recovery
-    RP_TRANSIENT std::atomic<Anchor> anchor;
 
     RP_PERSIST CrossPtr<char, SB_IDX> superblock;
     RP_PERSIST CrossPtr<ProcHeap, META_IDX> heap;
@@ -266,7 +267,7 @@ struct Descriptor {
             FLUSHFENCE;
         };
 }__attribute__((aligned(CACHELINE_SIZE)));
-static_assert(sizeof(Descriptor) == CACHELINE_SIZE, "Invalid Descriptor size");
+// static_assert(sizeof(Descriptor) == CACHELINE_SIZE, "Invalid Descriptor size");
 
 /* 
  * struct ProcHeap

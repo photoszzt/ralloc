@@ -88,14 +88,14 @@ const uint64_t SC_MASK = (1ULL << 6) - 1;
 // allocations with size > MAX_SZ are not covered by a size class
 const int MAX_SZ = ((1 << 13) + (1 << 11) * 3);
 const uint64_t SBSIZE = (16 * PAGESIZE); // size of a superblock 64K
-const uint64_t DESCSIZE = CACHELINE_SIZE;
+const uint64_t DESCSIZE = 256;
 const int SB_SHIFT = 16; // assume size of a superblock is 64K
-const int DESC_SHIFT = 6; // assume size of a descriptor is 64B
+const int DESC_SHIFT = 8;
 
 
 /* Consts Determined by Customizable Values */
 const uint64_t MAX_DESC_AMOUNT = 1ULL<<MAX_DESC_AMOUNT_BITS; // maximum of superblocks in region
-const uint64_t MAX_DESC_OFFSET_BITS = MAX_DESC_AMOUNT_BITS + 6;// plus 2^6(64)Byte descriptor
+const uint64_t MAX_DESC_OFFSET_BITS = MAX_DESC_AMOUNT_BITS + DESC_SHIFT;
 const uint64_t MAX_DESC_OFFSET_MASK = (1ULL<<MAX_DESC_OFFSET_BITS) - 1;
 const uint64_t MAX_SB_AMOUNT = MAX_DESC_AMOUNT;
 const int64_t MAX_SB_REGION_SIZE = SBSIZE*MAX_SB_AMOUNT; // max possible sb region size to call RP_init. Currently it's 1TB which must be sufficient
