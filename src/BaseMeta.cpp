@@ -18,6 +18,7 @@
 #include <iostream>
 
 #include "BaseMeta.hpp"
+#include "ralloc.hpp"
 
 /*
  * BaseMeta.cpp contains implementation of most types and functions declared in
@@ -386,7 +387,8 @@ void BaseMeta::flush_cache(size_t sc_idx, TCacheBin* cache) {
             else
                 newanchor.count += block_count;
         }
-        while (!desc->anchor.compare_exchange_weak(oldanchor, newanchor));
+        while (!mcas((uint64_t*) &desc->anchor, (uint64_t*) &oldanchor, *((uint64_t*) &newanchor)));
+        // while (!desc->anchor.compare_exchange_weak(oldanchor, newanchor));
 
         // after last CAS, can't reliably read any desc fields
         // as desc might have become empty and been concurrently reused
@@ -483,8 +485,9 @@ retry:
         newanchor.avail = maxcount;
         newanchor.state = SB_FULL;
     }
-    while (!desc->anchor.compare_exchange_weak(
-                oldanchor, newanchor));
+    while (!mcas((uint64_t*) &desc->anchor, (uint64_t*) &oldanchor, *((uint64_t*) &newanchor)));
+    // while (!desc->anchor.compare_exchange_weak(
+    //             oldanchor, newanchor));
 
     // will take as many blocks as available from superblock
     // *AND* no thread can do malloc() using this superblock, we
@@ -536,7 +539,8 @@ void BaseMeta::malloc_from_newsb(size_t sc_idx, TCacheBin* cache, size_t& block_
     anchor.avail = maxcount;
     anchor.count = 0;
     anchor.state = SB_FULL;
-    desc->anchor.store(anchor);
+    mcas_store((uint64_t*) &desc->anchor, *((uint64_t*) &anchor));
+    // desc->anchor.store(anchor);
 
     FLUSH(desc);
     FLUSHFENCE;
@@ -673,7 +677,8 @@ void* BaseMeta::do_malloc(size_t size){
         anchor.avail = 0;
         anchor.count = 0;
         anchor.state = SB_FULL;
-        desc->anchor.store(anchor);
+        mcas_store((uint64_t*) &desc->anchor, *((uint64_t*) &anchor));
+        // desc->anchor.store(anchor);
 
         FLUSH(&desc);
         FLUSHFENCE;
@@ -835,7 +840,9 @@ void GarbageCollection::operator() () {
                 // set transient variables in curr_desc
                 curr_desc->next_free.store(nullptr);
                 curr_desc->next_partial.store(nullptr);
-                curr_desc->anchor.store(anchor);
+
+                mcas_store((uint64_t*) &curr_desc->anchor, *((uint64_t*) &anchor));
+                // curr_desc->anchor.store(anchor);
 
                 // move curr_sb to the sb next to this large sb
                 curr_sb+=curr_desc->block_size;
@@ -857,7 +864,9 @@ void GarbageCollection::operator() () {
                     // set transient variables in curr_desc
                     curr_desc->next_free.store(nullptr);
                     curr_desc->next_partial.store(nullptr);
-                    curr_desc->anchor.store(anchor);
+
+                    mcas_store((uint64_t*) &curr_desc->anchor, *((uint64_t*) &anchor));
+                    // curr_desc->anchor.store(anchor);
                 } else {
                     // this sb is partially used
                     assert(free_blocks_head != nullptr);
@@ -868,7 +877,9 @@ void GarbageCollection::operator() () {
                     // set transient variables in curr_desc
                     curr_desc->next_free.store(nullptr);
                     base_md->heap_push_partial(curr_desc);
-                    curr_desc->anchor.store(anchor);
+
+                    mcas_store((uint64_t*) &curr_desc->anchor, *((uint64_t*) &anchor));
+                    // curr_desc->anchor.store(anchor);
                 }
                 // move curr_sb and curr_desc to next sb
                 curr_sb+=SBSIZE;
