@@ -34,6 +34,8 @@ namespace ralloc{
 using namespace ralloc;
 extern void public_flush_cache();
 
+thread_local uint64_t THREAD_ID = 0;
+
 #define CXL_PCIE_BAR_PATH  "/sys/devices/pci0000:16/0000:16:00.1/resource2"
 #define CSR_RD_BUFF 13
 #define CSR_WR_BUFF 14
@@ -106,8 +108,6 @@ uint64_t wr_buff_paddr = 0;
 
 uint64_t* target_buff_vaddr = nullptr;
 uint64_t target_buff_paddr = 0;
-
-thread_local uint64_t THREAD_ID = 0;
 
 int init_mcas() {
     uint64_t TGT_SIZE = 64 * 1024 * 1024;
@@ -213,21 +213,21 @@ int _RP_init(const char* id, uint64_t size){
     bool restart;
     _rgs = new Regions();
 
-    init_mcas();
-
     char* temp;
 
     for(int i=0; i<LAST_IDX;i++){
     switch(i){
     case DESC_IDX:
-        // temp = (char*) malloc(1 + strlen(id) + 5 + 1);
-        // strcpy(temp, "/");
-        // strcat(temp, id);
-        // strcat(temp, "_desc");
-        //
-        // _rgs->create(temp, num_sb*DESCSIZE, true, true);
-
+#ifdef CXL_MCAS
+        init_mcas();
         _rgs->set(num_sb*DESCSIZE, (char*) target_buff_vaddr);
+#else
+        temp = (char*) malloc(1 + strlen(id) + 5 + 1);
+        strcpy(temp, "/");
+        strcat(temp, id);
+        strcat(temp, "_desc");
+        _rgs->create(temp, num_sb*DESCSIZE, true, true);
+#endif
         break;
     case SB_IDX:
         temp = (char*) malloc(1 + strlen(id) + 3 + 1);
