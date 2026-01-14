@@ -34,12 +34,40 @@ namespace ralloc{
 using namespace ralloc;
 extern void public_flush_cache();
 
+#define CXL_PCIE_BAR_PATH  "/sys/devices/pci0000:16/0000:16:00.1/resource2"
+#define CSR_RD_BUFF 13
+#define CSR_WR_BUFF 14
+
+int init_csr(uint64_t **pci_vaddr) {
+    uint64_t *ptr;
+    int fd;
+
+    fd = open(CXL_PCIE_BAR_PATH, O_RDWR | O_SYNC);
+    if(fd == -1){
+        return -1;
+    }
+
+    ptr = (uint64_t*)mmap(0, (1 << 21), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);     // 2MB
+    if(ptr == (void *) -1){
+        close(fd);
+        return -1;
+    }
+    if(ptr == (void *) 0){
+        close(fd);
+        return -1;
+    }
+
+    *pci_vaddr = ptr;
+    return 0;
+}
+
 int get_addr_from_kmod(
-        const char* file_name, 
-        uint64_t byte_size, 
-        uint64_t* ret_pa_val, 
-        uint64_t** ret_va_ptr
-        ) {
+        const char* file_name,
+        uint64_t byte_size,
+        uint64_t* ret_pa_val,
+        uint64_t** ret_va_ptr,
+        uint64_t* pci_vaddr_ptr,
+        int csr_num) {
     int         kmod_fd = 0;
     ssize_t     bytes_read = 0;
 
@@ -52,6 +80,9 @@ int get_addr_from_kmod(
     }
     if ((bytes_read = read(kmod_fd, ret_pa_val, sizeof(uint64_t))) < 0) {
         goto FAILED;
+    }
+    if (csr_num > 0) {
+        pci_vaddr_ptr[csr_num] = *ret_pa_val;
     }
     *ret_va_ptr = (uint64_t*)mmap(NULL, byte_size, 
             PROT_READ | PROT_WRITE, MAP_SHARED, kmod_fd, 0); 
@@ -78,25 +109,37 @@ uint64_t target_buff_paddr = 0;
 
 int init_mcas() {
     int         init_ok = 0;
+    uint64_t*   pci_vaddr = nullptr;
+
+    init_ok = init_csr(&pci_vaddr);
+    if (init_ok) {
+        return -1;
+    }
 
     /* Get the physical address of buffer */
     init_ok = get_addr_from_kmod("/proc/mcas_rd_buff",
             PAGESIZE * 16,
             &rd_buff_paddr,
-            &rd_buff_vaddr
+            &rd_buff_vaddr,
+            pci_vaddr,
+            CSR_RD_BUFF
             );
     if (init_ok) { return -1;}
     init_ok = get_addr_from_kmod("/proc/mcas_wr_buff",
             PAGESIZE * 16,
             &wr_buff_paddr,
-            &wr_buff_vaddr
+            &wr_buff_vaddr,
+            pci_vaddr,
+            CSR_WR_BUFF
             );
     if (init_ok) { return -1;}
 
     init_ok = get_addr_from_kmod("/proc/mcas_target_buff",
             PAGESIZE * 16,
             &target_buff_paddr,
-            &target_buff_vaddr
+            &target_buff_vaddr,
+            pci_vaddr,
+            -1
             );
     if (init_ok) { return -1;}
     return 0;
